@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Share prompt view for Maré Player.
+//! Share prompt view for Glacier Player.
 //!
-//! This module contains the share dialog for generating song.link URLs
-//! to share tracks and albums across platforms.
+//! This module contains the share dialog for QQ Music track and album links.
 
 use cosmic::Element;
 use cosmic::iced::alignment::Horizontal;
@@ -19,7 +18,7 @@ use crate::views::components::{back_button, fading_standard_text, fading_suggest
 impl AppModel {
     /// Render the share prompt dialog.
     ///
-    /// Shows options to share the current track or album via song.link.
+    /// Shows options to share the current track or album via QQ Music.
     pub fn view_share_prompt(
         &self,
         track_id: String,

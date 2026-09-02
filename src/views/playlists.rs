@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Playlist views for Maré Player.
+//! Playlist views for Glacier Player.
 //!
 //! This module contains the playlist list view and playlist detail view.
 
@@ -65,7 +65,7 @@ impl AppModel {
                             Arc::clone(&self.track_list_arc),
                             match (&self.selected_playlist_uuid, &self.selected_playlist_name) {
                                 (Some(uuid), Some(name)) => {
-                                    Some(crate::tidal::models::PlaybackSource::playlist(uuid.clone(), name.clone()))
+                                    Some(crate::music::models::PlaybackSource::playlist(uuid.clone(), name.clone()))
                                 }
                                 _ => None,
                             },
@@ -83,7 +83,7 @@ impl AppModel {
         } else {
             let loaded_images = &self.loaded_images;
             let source = match (&self.selected_playlist_uuid, &self.selected_playlist_name) {
-                (Some(uuid), Some(name)) => Some(crate::tidal::models::PlaybackSource::playlist(uuid.clone(), name.clone())),
+                (Some(uuid), Some(name)) => Some(crate::music::models::PlaybackSource::playlist(uuid.clone(), name.clone())),
                 _ => None,
             };
             let opts = TrackRowOptions { tracks: Arc::clone(&self.track_list_arc), source, ..Default::default() };

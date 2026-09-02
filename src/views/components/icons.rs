@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! SVG icon data and icon-handle helpers for Maré Player.
+//! SVG icon data and icon-handle helpers for Glacier Player.
 //!
 //! Centralises all inline SVG definitions and the small helper functions that
 //! turn them into [`cosmic::widget::icon::Handle`] values.  Keeping these
@@ -51,7 +51,7 @@ pub const LYRICS_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 1
 
 /// Credits icon SVG for the "show credits" button.
 ///
-/// Two overlapping people — the same "who worked on this" metaphor TIDAL
+/// Two overlapping people — the same "who worked on this" metaphor QQ Music
 /// uses for its credits tab: a foreground figure (head + shoulders) with a
 /// second one stepping in behind it.  Stroke-based like [`LYRICS_SVG`] so it
 /// recolours with the theme; designed for 16×16 symbolic use.

@@ -1,17 +1,17 @@
 # Authentication
-sign-in = TIDAL로 로그인
+sign-in = QQ Music로 로그인
 sign-in-prompt = 음악에 접근하려면 로그인하세요
-sign-in-title = TIDAL에 로그인
+sign-in-title = QQ Music에 로그인
 sign-out = 로그아웃
 sign-in-button = 로그인
 open-browser = 브라우저 열기
 cancel = 취소
 verifying-auth = 인증 확인 중...
 verifying-auth-wait = 로그인을 확인하는 동안 잠시 기다려 주세요.
-login-step-browser = 1. TIDAL 로그인 페이지를 열고 로그인하세요:
+login-step-browser = 1. QQ Music 로그인 페이지를 열고 로그인하세요:
 login-returns-here = 로그인하면 바로 여기로 돌아옵니다 — 복사할 것이 없습니다.
 login-step-paste = 2. 그런 다음 브라우저가 열리지 않는 페이지로 이동합니다. 그 주소를 복사해 여기에 붙여넣으세요:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = 로그인 완료
 login-retry = 이 로그인 링크는 이미 사용되었거나 만료되었습니다 — 브라우저를 다시 열고 새 주소를 복사하세요.
 preparing-login = 로그인 준비 중...
@@ -99,7 +99,7 @@ track-count = 트랙 {$count}곡
 artist-count = 아티스트 {$count}명
 
 # Search
-search-placeholder = 트랙, 앨범, 아티스트 검색...
+search-placeholder = 트랙 검색...
 
 # Debug
 debug-unoptimized = (최적화되지 않음)
@@ -151,7 +151,7 @@ refresh = 새로고침
 
 # Share
 share = 공유
-share-description = song.link URL을 생성하여 클립보드에 복사
+share-description = QQ Music URL을 생성하여 클립보드에 복사
 share-track = 트랙 공유: {$title}
 share-album = 앨범 공유: {$title}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Settings view for Maré Player.
+//! Settings view for Glacier Player.
 //!
 //! This module contains the settings interface for configuring
 //! audio quality, managing cache, and account settings.
@@ -9,11 +9,11 @@ use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
+use crate::auth::AuthState;
 use crate::config::{AudioQuality, LogLevel};
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::tidal::auth::AuthState;
 use crate::views::components::back_button;
 
 /// Available audio quality options
@@ -32,7 +32,7 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         let (_is_authenticated, user_profile) = {
-            let client = self.tidal_client.blocking_lock();
+            let client = self.music_client.blocking_lock();
             match client.auth_state() {
                 AuthState::Authenticated { profile } => (true, Some(profile.clone())),
                 _ => (false, None),
@@ -76,6 +76,17 @@ impl AppModel {
                 .width(Length::Fill),
             )
             .push(text("Console / journal verbosity. Applies immediately.").size(11))
+            .spacing(8);
+
+        let api_section = widget::Column::new()
+            .push(text("QQ Music API").size(14))
+            .push(
+                widget::text_input("http://127.0.0.1:8080", &self.qqmusic_api_url_draft)
+                    .on_input(Message::QqMusicApiUrlChanged)
+                    .on_submit(|_| Message::ApplyQqMusicApiUrl)
+                    .width(Length::Fill),
+            )
+            .push(text("Web service endpoint").size(11))
             .spacing(8);
 
         let account_section: Element<'_, Message> = if let Some(profile) = &user_profile {
@@ -184,6 +195,8 @@ impl AppModel {
             .push(quality_section)
             .push(widget::space::vertical().height(8))
             .push(logging_section)
+            .push(widget::space::vertical().height(8))
+            .push(api_section)
             .push(widget::space::vertical().height(8))
             .push(about_section)
             .spacing(8)

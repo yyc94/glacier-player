@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Application state for Maré Player.
+//! Application state for Glacier Player.
 //!
 //! This module defines the main application model and view state types.
 
@@ -15,19 +15,18 @@ use cosmic::iced::window::Id;
 use cosmic::widget::menu::key_bind::KeyBind;
 use tokio::sync::Mutex;
 
+use crate::auth::QrLoginRequest;
 use crate::config::Config;
 use crate::image_cache::ImageCache;
 #[cfg(not(feature = "panel-applet"))]
-use crate::menu::TidalMenuAction;
-use crate::tidal::auth::LoginRequest;
-use crate::tidal::client::TidalAppClient;
-use crate::tidal::models::{
+use crate::menu::MusicMenuAction;
+use crate::music::models::{
     Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, FeedRow, Mix, Playlist, SearchResults, Track, TrackDetailRow,
 };
-use crate::tidal::mpris::{MprisCommand, MprisHandle};
-use crate::tidal::play_history::PlayHistory;
-use crate::tidal::play_reporter::{InProgressPlay, PlayReporter};
-use crate::tidal::player::{NowPlaying, PlaybackState};
+use crate::music::mpris::{MprisCommand, MprisHandle};
+use crate::music::play_history::PlayHistory;
+use crate::music::player::{NowPlaying, PlaybackState};
+use crate::qqmusic::QqMusicAppClient;
 use crate::views::visualizer::VisualizerState;
 use cosmic::widget::image::Handle;
 
@@ -151,16 +150,14 @@ pub struct AppModel {
     pub(crate) popup: Option<Id>,
     /// Configuration data that persists between application runs.
     pub(crate) config: Config,
-    /// The TIDAL client
-    pub(crate) tidal_client: Arc<Mutex<TidalAppClient>>,
+    /// Editable QQMusicApi URL draft; applied when the settings field submits.
+    pub(crate) qqmusic_api_url_draft: String,
+    /// The QQ Music client
+    pub(crate) music_client: Arc<Mutex<QqMusicAppClient>>,
     /// Current view state
     pub(crate) view_state: ViewState,
-    /// Pending PKCE login (during the login flow)
-    pub(crate) login_request: Option<LoginRequest>,
-    /// The redirect URL the user pasted back from the browser
-    pub(crate) login_redirect_url: String,
-    /// Sign-in callbacks delivered by the browser through `tidal://`
-    pub(crate) login_uri_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
+    /// Pending QR login request (during the login flow)
+    pub(crate) qr_login_request: Option<QrLoginRequest>,
     /// Current search query
     pub(crate) search_query: String,
     /// Search results
@@ -193,7 +190,7 @@ pub struct AppModel {
     /// Flattened rows of the artist-detail view, rendered via the virtual
     /// `List` widget so only visible rows materialise and covers load lazily.
     pub(crate) artist_rows: list::Content<ArtistRow>,
-    /// Currently loaded Explore (TIDAL browse) page, if any (kept for its title).
+    /// Currently loaded Explore (QQ Music browse) page, if any (kept for its title).
     pub(crate) explore_page: Option<ExplorePage>,
     /// Flattened rows of the current Explore page, rendered via the virtual
     /// `List` widget so long browse pages scroll smoothly.
@@ -207,23 +204,23 @@ pub struct AppModel {
     pub(crate) selected_mix_tracks: Vec<Track>,
     /// Name of the currently selected mix
     pub(crate) selected_mix_name: Option<String>,
-    /// TIDAL id of the currently selected mix (for play attribution).
+    /// QQ Music id of the currently selected mix (for play attribution).
     pub(crate) selected_mix_id: Option<String>,
     /// Tracks for the currently selected track radio
     pub(crate) selected_radio_tracks: Vec<Track>,
     /// The seed track that the radio is based on
     pub(crate) selected_radio_source_track: Option<Track>,
-    /// TIDAL mix id backing the current track radio (from
+    /// QQ Music mix id backing the current track radio (from
     /// `/v1/tracks/{seed}/mix`).  Track radio is internally a Mix;
     /// reporting plays as `MIX:<mix_id>` is the only attribution that
-    /// surfaces them in TIDAL's Recently Played (as a "Track Radio"
+    /// surfaces them in QQ Music's Recently Played (as a "Track Radio"
     /// tile, via the mix's `mixType=TRACK_MIX`).
     pub(crate) selected_radio_mix_id: Option<String>,
     /// The track whose lyrics view is currently open.
     pub(crate) selected_lyrics_track: Option<Track>,
     /// Lyrics loaded for `selected_lyrics_track`.  `None` while loading;
-    /// `Some` with `is_empty() == true` when TIDAL has no lyrics.
-    pub(crate) selected_track_lyrics: Option<crate::tidal::models::TrackLyrics>,
+    /// `Some` with `is_empty() == true` when QQ Music has no lyrics.
+    pub(crate) selected_track_lyrics: Option<crate::music::models::TrackLyrics>,
     /// Index of the currently-active synced lyric line, updated each
     /// tick from `playback_position`.  `None` before the first line
     /// fires or when the lyrics view isn't synced.
@@ -233,19 +230,19 @@ pub struct AppModel {
     /// current track returns. Drives whether the now-playing bar shows the
     /// lyrics icon at all. Backed by the DB lyrics cache.
     pub(crate) now_playing_lyrics: Option<(String, bool)>,
-    /// What TIDAL actually served for the current stream — quality label, sample
+    /// What QQ Music actually served for the current stream — quality label, sample
     /// rate and bit depth from `playbackinfopostpaywall`. Shown as a badge under
     /// the now-playing title. `None` for videos and before the first track.
     ///
     /// Sourced from the playback response rather than the catalogue metadata or
     /// the subscription, both of which only advertise capability — see
-    /// [`StreamQuality`](crate::tidal::models::StreamQuality).
-    pub(crate) now_playing_quality: Option<crate::tidal::models::StreamQuality>,
+    /// [`StreamQuality`](crate::music::models::StreamQuality).
+    pub(crate) now_playing_quality: Option<crate::music::models::StreamQuality>,
     /// The track whose credits view is currently open.
     pub(crate) selected_credits_track: Option<Track>,
     /// Credits loaded for `selected_credits_track`.  `None` while loading;
-    /// `Some` with `is_empty() == true` when TIDAL has no credits.
-    pub(crate) selected_track_credits: Option<crate::tidal::models::TrackCredits>,
+    /// `Some` with `is_empty() == true` when QQ Music has no credits.
+    pub(crate) selected_track_credits: Option<crate::music::models::TrackCredits>,
     /// The track whose detail/recommendations view is open
     pub(crate) selected_detail_track: Option<Track>,
     /// "More Albums by {Artist}" for the track detail view
@@ -263,7 +260,7 @@ pub struct AppModel {
     pub(crate) selected_album_tracks: Vec<Track>,
     /// Selected playlist name
     pub(crate) selected_playlist_name: Option<String>,
-    /// TIDAL uuid of the currently selected playlist (for play attribution).
+    /// QQ Music uuid of the currently selected playlist (for play attribution).
     pub(crate) selected_playlist_uuid: Option<String>,
     /// Selected album info
     pub(crate) selected_album: Option<Album>,
@@ -293,7 +290,7 @@ pub struct AppModel {
     /// `Some` ⇒ the now-playing pane shows live video instead of the spectrum.
     pub(crate) video_player: Option<crate::playback::MediaPlayer>,
     /// When a video is "popped out" into its own child window, the handle to
-    /// that `mare-video-window` process. `Some` ⇒ the now-playing panel shows
+    /// that `glacier-video-window` process. `Some` ⇒ the now-playing panel shows
     /// the audio-style bar and the video plays in the separate window; panel
     /// transport delegates to the child over its stdin pipe. Panel-applet only.
     pub(crate) video_window: Option<crate::playback::VideoWindowChild>,
@@ -335,12 +332,10 @@ pub struct AppModel {
     /// Shuffle mode enabled
     pub(crate) shuffle_enabled: bool,
     /// Loop/repeat mode (None, Track, Playlist)
-    pub(crate) loop_status: crate::tidal::mpris::LoopStatus,
-    /// Container that started the current playback session.  Threaded
-    /// from the view that initiated playback (album detail → Album,
-    /// playlist detail → Playlist, etc.); fed to both the now-playing
-    /// bar's display label and `play_reporter` for TIDAL attribution.
-    pub(crate) playback_source: Option<crate::tidal::models::PlaybackSource>,
+    pub(crate) loop_status: crate::music::mpris::LoopStatus,
+    /// Container that started the current playback session. Threaded from the
+    /// initiating view and used for local now-playing context.
+    pub(crate) playback_source: Option<crate::music::models::PlaybackSource>,
     /// Image cache for album art
     pub(crate) image_cache: ImageCache,
     /// Embedded cache database (turso): view-state snapshots, images, play
@@ -403,18 +398,9 @@ pub struct AppModel {
     /// Current window width in logical pixels (updated on resize).
     /// Used to scale text truncation limits proportionally.
     pub(crate) window_width: f32,
-    /// Background worker that POSTs `playback_session` events to TIDAL's
-    /// Event Producer so plays show up in Recently Played / count for
-    /// recommendations + royalties.  Shared `Arc` so the playback handler
-    /// can fire `record()` cheaply without holding any other lock.
-    pub(crate) play_reporter: Arc<PlayReporter>,
-    /// Bookkeeping for the currently-playing track's TIDAL play session.
-    /// Opened when a track starts, updated on every tick, finalised and
-    /// sent to `play_reporter` when the track ends or is replaced.
-    pub(crate) current_play: Option<InProgressPlay>,
     /// Keyboard shortcut bindings for the header menu bar (standalone mode only).
     #[cfg(not(feature = "panel-applet"))]
-    pub(crate) menu_key_binds: HashMap<KeyBind, TidalMenuAction>,
+    pub(crate) menu_key_binds: HashMap<KeyBind, MusicMenuAction>,
 }
 
 impl AppModel {
@@ -436,8 +422,8 @@ pub enum ViewState {
     Loading,
     /// Login required - show auth prompt
     Login,
-    /// Waiting for OAuth completion
-    AwaitingOAuth,
+    /// Waiting for QR completion
+    AwaitingQr,
     /// Main collection view with categories
     Main,
     /// Search view
@@ -464,7 +450,7 @@ pub enum ViewState {
     Credits,
     /// Track detail view (recommendations: more albums by artist, related albums, related artists)
     TrackDetail,
-    /// Explore (TIDAL browse pages: featured, genres, moods, decades)
+    /// Explore (QQ Music browse pages: featured, genres, moods, decades)
     Explore,
     /// Favorite tracks view
     FavoriteTracks,

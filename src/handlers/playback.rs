@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Playback control message handlers for Maré Player.
+//! Playback control message handlers for Glacier Player.
 //!
 //! This module handles play, pause, stop, seek, queue management, shuffle, and volume control.
 
@@ -11,18 +11,18 @@ use cosmic::iced::platform_specific::shell::commands::popup::destroy_popup;
 use cosmic::prelude::*;
 
 use crate::messages::Message;
+use crate::music::models::Track;
+use crate::music::mpris::LoopStatus;
+use crate::music::player::{NowPlaying, PlaybackState};
+use crate::qqmusic::PlaybackUrl;
 use crate::state::AppModel;
-use crate::tidal::client::PlaybackUrl;
-use crate::tidal::models::Track;
-use crate::tidal::mpris::LoopStatus;
-use crate::tidal::player::{NowPlaying, PlaybackState};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// How long to wait after the last skip before resolving a playback URL.
 ///
 /// Long enough to swallow a burst of rapid skips into one request, short enough
-/// to disappear under the resolution itself (TIDAL takes ~180–400 ms to answer
+/// to disappear under the resolution itself (QQ Music takes ~180–400 ms to answer
 /// `playbackinfopostpaywall`).
 const PLAYBACK_RESOLVE_DEBOUNCE_MS: u64 = 150;
 
@@ -36,7 +36,7 @@ impl AppModel {
     /// The visible state changes (rewind the slider, tear down the old
     /// pipeline, switch to `Loading`) happen immediately so the UI stays
     /// responsive, while the URL resolution is debounced by
-    /// [`PLAYBACK_RESOLVE_DEBOUNCE_MS`] — a burst of rapid skips costs one TIDAL
+    /// [`PLAYBACK_RESOLVE_DEBOUNCE_MS`] — a burst of rapid skips costs one QQ Music
     /// request for whatever the user settles on rather than one per skip, each
     /// of which mints a stream token. Mirrors `seek_debounce_version`.
     ///
@@ -95,7 +95,7 @@ impl AppModel {
         if track.is_video {
             self.visualizer_state.set_active(false);
             let video_id = track.id.clone();
-            let client = self.tidal_client.clone();
+            let client = self.music_client.clone();
             return Task::perform(
                 async move {
                     let client = client.lock().await;
@@ -109,7 +109,7 @@ impl AppModel {
         }
 
         let track_id = track.id.clone();
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
         // Switching to an audio track: if a video was popped out into its own
         // window, kill it — there's no video to show anymore.
         self.close_video_window_if_open();
@@ -143,7 +143,7 @@ impl AppModel {
     pub fn handle_play_track(
         &mut self,
         track: Track,
-        source: Option<crate::tidal::models::PlaybackSource>,
+        source: Option<crate::music::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!("Play single track requested: {} (source: {:?})", track, source.as_ref().map(|s| (&s.kind, &s.id)));
         self.playback_source = source;
@@ -164,7 +164,7 @@ impl AppModel {
         &mut self,
         tracks: Arc<[Track]>,
         start_index: usize,
-        source: Option<crate::tidal::models::PlaybackSource>,
+        source: Option<crate::music::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
             "Play track list requested: {} tracks, starting at index {} (source: {:?})",
@@ -189,7 +189,7 @@ impl AppModel {
     pub fn handle_shuffle_play(
         &mut self,
         tracks: Arc<[Track]>,
-        source: Option<crate::tidal::models::PlaybackSource>,
+        source: Option<crate::music::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
             "Shuffle play requested: {} tracks (source: {:?})",
@@ -334,11 +334,11 @@ impl AppModel {
     /// resolved [`PlaybackUrl`], starts the pipeline with the track's album
     /// replay gain feeding the `rg` volume element and the shared spectrum
     /// analyzer driving the visualizer, then updates now-playing, history,
-    /// the play-attribution session, and MPRIS.
+    /// and MPRIS.
     ///
-    /// Song disk-caching is intentionally skipped here: capturing the encoded
-    /// stream (multi-segment DASH especially) is hard and is deferred.
-    /// Previously-cached files still play instantly via a `file://` URI.
+    /// Song disk-caching is intentionally skipped here because QQMusicApi
+    /// returns short-lived direct URLs. Previously-cached files still play
+    /// instantly via a `file://` URI.
     fn start_gst_audio(&mut self, track: Track, playback_url: PlaybackUrl) -> Task<cosmic::Action<Message>> {
         let now_playing = NowPlaying {
             track_id: track.id.clone(),
@@ -350,19 +350,17 @@ impl AppModel {
             playlist_name: self.playback_source.as_ref().map(|s| s.display_name.clone()),
         };
 
-        // Tracks carry TIDAL's authored album replay gain; unity (0 dB) when
+        // Tracks carry QQ Music's authored album replay gain; unity (0 dB) when
         // the API didn't provide one.
         let replay_gain_db = playback_url.replay_gain_db().unwrap_or(0.0);
 
-        // Badge what TIDAL actually served, not what we asked for.
+        // Badge what QQ Music actually served, not what we asked for.
         self.now_playing_quality = playback_url.stream_quality();
 
-        // `as_url()` returns a ready-to-use GStreamer URI: an http(s) URL for
-        // direct qualities, or an inline `data:application/dash+xml` URI for
-        // DASH (HiRes) — nothing is written to disk.
+        // `as_url()` returns the ready-to-use direct URL from QQMusicApi.
         let uri = playback_url.as_url();
 
-        tracing::info!("GStreamer audio: {} ({})", track, if playback_url.is_dash() { "DASH" } else { "direct" },);
+        tracing::info!("GStreamer audio: {} (direct)", track);
 
         let analyzer = self.visualizer_state.analyzer();
         match crate::playback::MediaPlayer::new_audio(&uri, analyzer, replay_gain_db) {
@@ -375,11 +373,9 @@ impl AppModel {
                 self.playback_position = 0.0;
                 self.visualizer_state.set_active(true);
 
-                // Record in local play history and open a TIDAL
-                // play-attribution session (finalises the previous one).
+                // Record the track in local play history.
                 self.play_history.record(&track);
                 self.persist_play_history();
-                self.open_play_session(&track);
 
                 // Stage the next track for gapless playback.
                 let preload_task = Task::done(cosmic::Action::App(Message::PreloadNextTrack));
@@ -410,7 +406,7 @@ impl AppModel {
     /// per loop mode, updates now-playing/history/session, and stages the
     /// following track's preload.
     fn handle_gapless_advance(&mut self) -> Task<cosmic::Action<Message>> {
-        use crate::tidal::mpris::LoopStatus;
+        use crate::music::mpris::LoopStatus;
         let new_index = match self.loop_status {
             LoopStatus::Track => Some(self.playback_queue_index),
             LoopStatus::Playlist => {
@@ -441,7 +437,6 @@ impl AppModel {
 
             self.play_history.record(&track);
             self.persist_play_history();
-            self.open_play_session(&track);
 
             let preload_task = Task::done(cosmic::Action::App(Message::PreloadNextTrack));
             let mpris_task = self.update_mpris_state();
@@ -663,10 +658,6 @@ impl AppModel {
 
     /// Handle stop playback
     pub fn handle_stop_playback(&mut self) -> Task<cosmic::Action<Message>> {
-        // Finalise the in-progress TIDAL play-attribution session, if any,
-        // before tearing down playback state.  Reports the listen if it
-        // crossed the threshold.
-        self.finalize_and_report_play_session();
         // Popped-out video: kill the child window and stop.
         if self.video_window.is_some() {
             self.close_video_window_if_open();
@@ -697,7 +688,7 @@ impl AppModel {
     }
 
     /// Toggle the video pop-out: hand the current video to a separate child
-    /// window (`mare-video-window`) and tear down inline playback, or kill the
+    /// window (`glacier-video-window`) and tear down inline playback, or kill the
     /// child and resume the video inline.
     pub fn handle_toggle_video_window(&mut self) -> Task<cosmic::Action<Message>> {
         // Already popped out → kill the child and resume inline from the last
@@ -735,7 +726,7 @@ impl AppModel {
             }
             None => {
                 // Couldn't launch the companion — stay inline.
-                tracing::error!("could not launch mare-video-window; staying inline");
+                tracing::error!("could not launch glacier-video-window; staying inline");
                 self.resume_inline_video(&url, pos)
             }
         }
@@ -786,10 +777,6 @@ impl AppModel {
             "position" => {
                 if let Ok(pos) = rest.parse::<f64>() {
                     self.playback_position = pos;
-                    // Keep the play-attribution session's high-water mark fresh.
-                    if let Some(p) = &mut self.current_play {
-                        p.observe_position(pos);
-                    }
                     // Drive the karaoke-style highlight in the lyrics view.
                     if matches!(self.view_state, crate::state::ViewState::Lyrics)
                         && let (Some(track), Some(lyrics)) =
@@ -944,10 +931,6 @@ impl AppModel {
                 && let Some(pos) = self.media_player.as_ref().and_then(|mp| mp.position_secs())
             {
                 self.playback_position = pos;
-                // Keep the play-attribution session's high-water mark fresh.
-                if let Some(p) = &mut self.current_play {
-                    p.observe_position(pos);
-                }
                 // Drive the karaoke-style highlight in the lyrics view.
                 if matches!(self.view_state, crate::state::ViewState::Lyrics)
                     && let (Some(track), Some(lyrics)) =
@@ -1052,7 +1035,7 @@ impl AppModel {
     /// - `LoopStatus::Playlist`: wraps around to track 0 at end of queue.
     /// - `LoopStatus::None`: no preload at end of queue.
     pub fn handle_preload_next_track(&mut self) -> Task<cosmic::Action<Message>> {
-        use crate::tidal::mpris::LoopStatus;
+        use crate::music::mpris::LoopStatus;
 
         let preload_index = match self.loop_status {
             LoopStatus::Track => {
@@ -1095,7 +1078,7 @@ impl AppModel {
         );
 
         let track_id = track.id.clone();
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
 
         Task::perform(
             async move {
@@ -1116,7 +1099,7 @@ impl AppModel {
             Ok((track, playback_url)) => {
                 if let Some(mp) = &self.media_player {
                     let rg = playback_url.replay_gain_db().unwrap_or(0.0);
-                    // Ready-to-use GStreamer URI (http(s) or inline data: DASH).
+                    // Ready-to-use direct GStreamer URI.
                     let uri = playback_url.as_url();
                     mp.set_next(uri, rg);
                     tracing::info!("Gapless: staged next track: {}", track);
@@ -1138,98 +1121,5 @@ impl AppModel {
     pub fn handle_gapless_transition(&mut self) -> Task<cosmic::Action<Message>> {
         tracing::info!("Gapless transition acknowledged");
         self.update_mpris_state()
-    }
-
-    // ═══ TIDAL play attribution helpers ════════════════════════════════════
-
-    /// Open a new in-progress play session for `track`.
-    ///
-    /// Closes the previous session first (if any) so a quick track switch
-    /// still finalizes the prior listen — a play that crossed the 30s /
-    /// 50% threshold gets reported even if the user skips to the next one.
-    pub(crate) fn open_play_session(&mut self, track: &Track) {
-        // Finalize whatever was playing before (skip/replace case).
-        self.finalize_and_report_play_session();
-
-        // Map the user's configured quality preference to the TIDAL
-        // string the event-producer expects.  TIDAL's modern hi-res tier
-        // is wire-named HI_RES_LOSSLESS even though tidlers' Display
-        // emits the older HI_RES; the latter is no longer accepted in
-        // playback_session events.
-        let quality = match self.config.audio_quality {
-            crate::config::AudioQuality::Low => "LOW",
-            crate::config::AudioQuality::High => "HIGH",
-            crate::config::AudioQuality::Lossless => "LOSSLESS",
-            crate::config::AudioQuality::HiRes => "HI_RES_LOSSLESS",
-        };
-
-        // Use the threaded container source (ALBUM / PLAYLIST / MIX /
-        // ARTIST) when available so TIDAL's play_log consumer surfaces
-        // the play in Recently Played.  Falls back to TRACK/track_id
-        // for ad-hoc plays (favorites list, history view, MPRIS OpenUri
-        // single-track playback) — those still credit royalties and
-        // count toward 'Most Listened' aggregates but won't appear in
-        // Recently Played per the SDK source.
-        let (source_type, source_id) = match &self.playback_source {
-            Some(s) => {
-                // For Track-kind ad-hoc sources, prefer the live track's id
-                // so each listen attributes individually; the source.id is
-                // a placeholder in that case.
-                let id = if matches!(s.kind, crate::tidal::models::PlaybackSourceKind::Track) {
-                    track.id.clone()
-                } else {
-                    s.id.clone()
-                };
-                (Some(s.kind.as_tidal_str().to_string()), Some(id))
-            }
-            None => (Some("TRACK".to_string()), Some(track.id.clone())),
-        };
-
-        self.current_play = Some(crate::tidal::play_reporter::InProgressPlay::open(
-            track.id.clone(),
-            quality.to_string(),
-            source_type,
-            source_id,
-            0.0,
-            track.duration as f64,
-        ));
-    }
-
-    /// Finalize the current in-progress session and dispatch to the
-    /// reporter if the listen exceeded the threshold (30s OR 50%).
-    ///
-    /// Safe to call when no session is open (no-op).  Drops the session
-    /// either way, so callers should `open_play_session` before the next
-    /// listen if they want it tracked.
-    pub(crate) fn finalize_and_report_play_session(&mut self) {
-        let Some(in_progress) = self.current_play.take() else {
-            return;
-        };
-        if !in_progress.meets_threshold() {
-            tracing::debug!(
-                track = %in_progress.track_id,
-                listened = in_progress.last_position_s - in_progress.start_position_s,
-                duration = in_progress.duration_s,
-                "play below threshold; skipping report",
-            );
-            return;
-        }
-        // Snapshot the access token from the TIDAL client.  Uses
-        // `try_lock` internally; if the client lock is contended we
-        // skip reporting this one play rather than block the UI thread.
-        let token = {
-            let client = self.tidal_client.blocking_lock();
-            client.current_access_token()
-        };
-        let Some(token) = token else {
-            tracing::debug!(
-                track = %in_progress.track_id,
-                "no access token available; skipping report",
-            );
-            return;
-        };
-        let end_ts_ms =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
-        self.play_reporter.record(in_progress.finalize(end_ts_ms, token));
     }
 }

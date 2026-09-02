@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Reusable UI components and constants for Maré Player views.
+//! Reusable UI components and constants for Glacier Player views.
 //!
 //! Every clickable row in the applet — tracks, albums, playlists, menu entries,
 //! search results, discography items, inline text links — is built from a small
@@ -17,7 +17,7 @@
 //! ```text
 //! list_item(content, on_press, padding)     ← single source of truth for pill shape
 //!   │
-//!   ├── track_row(track, index, opts)       ← thumbnail + title + artist + duration + ♥
+//!   ├── track_row(track, index, opts)       ← thumbnail + title + artist + duration
 //!   │
 //!   ├── album_row(album)                    ← thumbnail + title + artist
 //!   │

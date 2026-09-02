@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Authentication message handlers for Maré Player.
+//! Authentication message handlers for Glacier Player.
 //!
-//! This module handles login, the OAuth PKCE flow, logout, and session
-//! restoration.
+//! This module handles QR login, logout, and session restoration.
 
 use cosmic::prelude::*;
 
-use crate::fl;
+use crate::auth::QrLoginRequest;
 use crate::messages::Message;
+use crate::qqmusic::QqLoginState;
 use crate::state::{AppModel, ViewState};
-use crate::tidal::auth::LoginRequest;
 
 // =============================================================================
 // Task Helper Methods
@@ -19,7 +18,7 @@ use crate::tidal::auth::LoginRequest;
 impl AppModel {
     /// Attempt to restore a previous session from stored credentials
     pub(crate) fn restore_session(&self) -> Task<cosmic::Action<Message>> {
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
         let audio_quality = self.config.audio_quality;
         Task::perform(
             async move {
@@ -32,9 +31,9 @@ impl AppModel {
         )
     }
 
-    /// Start the OAuth PKCE flow — builds the TIDAL authorize URL.
+    /// Start the QQ Music QR login flow.
     pub(crate) fn start_login_flow(&self) -> Task<cosmic::Action<Message>> {
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
         let audio_quality = self.config.audio_quality;
         Task::perform(
             async move {
@@ -43,19 +42,7 @@ impl AppModel {
                 client.set_audio_quality(audio_quality).await;
                 client.start_login().await.map_err(|e| e.to_string())
             },
-            |result| cosmic::Action::App(Message::LoginUrlReceived(result)),
-        )
-    }
-
-    /// Exchange the redirect URL the user pasted for TIDAL tokens.
-    pub(crate) fn complete_login(&self, redirect_url: String) -> Task<cosmic::Action<Message>> {
-        let client = self.tidal_client.clone();
-        Task::perform(
-            async move {
-                let mut client = client.lock().await;
-                client.complete_login(&redirect_url).await.map_err(|e| e.to_string())
-            },
-            |result| cosmic::Action::App(Message::LoginComplete(result)),
+            |result| cosmic::Action::App(Message::QrCodeReady(result)),
         )
     }
 }
@@ -65,26 +52,42 @@ impl AppModel {
 // =============================================================================
 
 impl AppModel {
-    /// Handle start login - begins the PKCE flow
+    /// Handle start login - requests a QQ Music QR code.
     pub fn handle_start_login(&mut self) -> Task<cosmic::Action<Message>> {
+        self.error_message = None;
         self.is_loading = true;
-        self.login_redirect_url.clear();
         self.start_login_flow()
     }
 
-    /// Handle the PKCE authorize URL being ready.
-    ///
-    /// Shows the view that walks the user through the browser sign-in and takes
-    /// the redirect URL back. The browser is opened on demand rather than
-    /// automatically: in applet mode the popup closes the moment the browser
-    /// takes focus, so the user needs to read the instructions first.
-    pub fn handle_login_url_received(&mut self, result: Result<LoginRequest, String>) -> Task<cosmic::Action<Message>> {
+    /// Cancel an active QR login and ignore any poll already in flight.
+    pub fn handle_cancel_login(&mut self) -> Task<cosmic::Action<Message>> {
+        self.qr_login_request = None;
+        self.is_loading = false;
+        self.view_state = ViewState::Login;
+        let client = self.music_client.clone();
+        Task::perform(
+            async move {
+                client.lock().await.cancel_qr_login();
+            },
+            |_| cosmic::Action::App(Message::Noop),
+        )
+    }
+
+    /// Handle the QR image request completing.
+    pub fn handle_qr_code_ready(&mut self, result: Result<QrLoginRequest, String>) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
             Ok(request) => {
-                self.login_request = Some(request);
-                self.view_state = ViewState::AwaitingOAuth;
-                Task::none()
+                self.qr_login_request = Some(request);
+                self.view_state = ViewState::AwaitingQr;
+                // QQ Music login is completed by scanning the displayed QR
+                // code. Polling starts after the image has been rendered.
+                Task::perform(
+                    async {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    },
+                    |_| cosmic::Action::App(Message::QqQrPoll),
+                )
             }
             Err(e) => {
                 tracing::error!("Login failed: {}", e);
@@ -95,53 +98,60 @@ impl AppModel {
         }
     }
 
-    /// Handle opening the TIDAL authorize URL in the browser
-    pub fn handle_open_login_url(&self) {
-        if let Some(request) = &self.login_request {
-            let _ = open::that(&request.authorize_url);
-        }
-    }
-
-    /// Handle the user submitting the pasted redirect URL
-    pub fn handle_submit_login_redirect_url(&mut self) -> Task<cosmic::Action<Message>> {
-        let redirect_url = self.login_redirect_url.trim().to_string();
-        if redirect_url.is_empty() {
+    pub fn handle_qq_qr_poll(&self) -> Task<cosmic::Action<Message>> {
+        if self.qr_login_request.is_none() {
             return Task::none();
         }
-        self.is_loading = true;
-        self.complete_login(redirect_url)
+        let client = self.music_client.clone();
+        Task::perform(
+            async move {
+                let mut client = client.lock().await;
+                client.poll_qr_login().await.map_err(|e| e.to_string())
+            },
+            |result| cosmic::Action::App(Message::QqQrStatus(result)),
+        )
     }
 
-    /// Handle the sign-in callback service coming up.
-    ///
-    /// A failure here only costs the automatic return: the login view falls
-    /// back to asking for the URL, so it is logged rather than surfaced.
-    pub fn handle_login_uri_service_started(
-        &mut self,
-        result: Result<std::sync::Arc<tokio::sync::Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>, String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_qq_qr_status(&mut self, result: Result<QqLoginState, String>) -> Task<cosmic::Action<Message>> {
+        if self.qr_login_request.is_none() {
+            return Task::none();
+        }
         match result {
-            Ok(rx) => self.login_uri_rx = Some(rx),
-            Err(e) => tracing::warn!("Sign-in callbacks unavailable: {e}"),
+            Ok(QqLoginState::Done) => self.handle_login_complete(Ok(())),
+            Ok(QqLoginState::Waiting | QqLoginState::Confirming) => Task::perform(
+                async {
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                },
+                |_| cosmic::Action::App(Message::QqQrPoll),
+            ),
+            Ok(QqLoginState::Expired) => {
+                self.qr_login_request = None;
+                self.view_state = ViewState::Login;
+                self.error_message = Some("QQ Music QR code expired. Please try again.".into());
+                Task::none()
+            }
+            Ok(QqLoginState::Refused) => {
+                self.qr_login_request = None;
+                self.view_state = ViewState::Login;
+                self.error_message = Some("QQ Music login was refused.".into());
+                Task::none()
+            }
+            Ok(QqLoginState::Failed) => {
+                self.qr_login_request = None;
+                self.view_state = ViewState::Login;
+                self.error_message = Some("QQ Music returned an unknown login status. Please try again.".into());
+                Task::none()
+            }
+            Err(error) => {
+                tracing::warn!("QQ Music QR poll failed: {error}");
+                Task::perform(
+                    async {
+                        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    },
+                    |_| cosmic::Action::App(Message::QqQrPoll),
+                )
+            }
         }
-        Task::none()
-    }
-
-    /// Handle a `tidal://login/auth?code=…` URI handed over by the browser.
-    ///
-    /// This is the whole point of registering the scheme: the user signs in and
-    /// the code arrives on its own, with nothing to copy.
-    pub fn handle_login_callback_uri(&mut self, uri: String) -> Task<cosmic::Action<Message>> {
-        if self.login_request.is_none() {
-            // Nothing asked for this — a stale link clicked out of a browser's
-            // history, most likely. Its code is long dead either way.
-            tracing::warn!("Ignoring a sign-in callback with no login in progress");
-            return Task::none();
-        }
-        tracing::info!("Sign-in callback received from the browser");
-        self.error_message = None;
-        self.login_redirect_url = uri;
-        self.handle_submit_login_redirect_url()
     }
 
     /// Handle the login flow completing
@@ -151,18 +161,13 @@ impl AppModel {
         match result {
             Ok(()) => {
                 tracing::info!("Login successful! Transitioning to Main view");
-                self.login_request = None;
-                self.login_redirect_url.clear();
+                self.qr_login_request = None;
                 self.enter_main_view()
             }
             Err(e) => {
-                // Stay on the login view. Authorization codes are single-use and
-                // expire in minutes, so the common failure is a URL that was
-                // already spent — the sign-in itself is still live, and going
-                // through the browser again yields a fresh code.
+                // Stay on the login view so the user can request a fresh QR code.
                 tracing::error!("Login failed: {}", e);
-                self.login_redirect_url.clear();
-                self.error_message = Some(fl!("login-retry"));
+                self.error_message = Some("QQ Music login could not be completed. Please request a new QR code.".into());
                 Task::none()
             }
         }
@@ -171,7 +176,7 @@ impl AppModel {
     /// Transition to the main view after successful authentication.
     ///
     /// Restores cached API data for instant UI population, then kicks off
-    /// background refreshes from the TIDAL API so content stays current.
+    /// background refreshes from the QQ Music API so content stays current.
     /// Used by both [`Self::handle_login_complete`] and
     /// [`Self::handle_session_restored`].
     fn enter_main_view(&mut self) -> Task<cosmic::Action<Message>> {
@@ -179,14 +184,7 @@ impl AppModel {
 
         let cache_task = self.restore_cached_api_data();
 
-        Task::batch(vec![
-            cache_task,
-            self.load_playlists(),
-            self.load_albums(),
-            self.load_favorite_tracks(),
-            self.load_profiles(),
-            self.load_mixes(),
-        ])
+        Task::batch(vec![cache_task, self.load_playlists(), self.load_albums(), self.load_favorite_tracks()])
     }
 
     /// Populate the UI with the last-seen library from the cache database
@@ -195,13 +193,11 @@ impl AppModel {
     /// the navigation handlers use; the parallel network loads in
     /// [`Self::enter_main_view`] then refresh everything.
     fn restore_cached_api_data(&self) -> Task<cosmic::Action<Message>> {
-        use crate::tidal::models::{Album, Artist, Mix, Playlist, Track};
+        use crate::music::models::{Album, Playlist, Track};
         Task::batch([
             self.read_view_cache::<Vec<Playlist>, _>("library:playlists", |p| Message::PlaylistsLoaded(Ok(p))),
             self.read_view_cache::<Vec<Album>, _>("library:albums", |a| Message::AlbumsLoaded(Ok(a))),
             self.read_view_cache::<Vec<Track>, _>("favorites:tracks", |t| Message::FavoriteTracksLoaded(Ok(t))),
-            self.read_view_cache::<Vec<Mix>, _>("library:mixes", |m| Message::MixesLoaded(Ok(m))),
-            self.read_view_cache::<Vec<Artist>, _>("profiles", |a| Message::ProfilesLoaded(Ok(a))),
         ])
     }
 
@@ -217,14 +213,16 @@ impl AppModel {
                 self.view_state = ViewState::Login;
                 Task::none()
             }
-            Err(ref e) if e.contains("Network error") && self.error_message.is_none() => {
+            Err(ref e)
+                if self.error_message.is_none()
+                    && (e.to_lowercase().contains("network") || e.to_lowercase().contains("http request failed")) =>
+            {
                 // First network failure — likely resuming from suspend / lid-open.
-                // try_restore_session already retried internally with backoff;
-                // schedule one more attempt so we cover slower reconnects.
+                // Schedule one more attempt so we cover slower reconnects.
                 tracing::info!("Session restore hit a network error, scheduling retry in 5s");
                 self.error_message = Some("Network unavailable, retrying\u{2026}".into());
                 self.is_loading = true;
-                let client = self.tidal_client.clone();
+                let client = self.music_client.clone();
                 let aq = self.config.audio_quality;
                 Task::perform(
                     async move {
@@ -246,7 +244,7 @@ impl AppModel {
 
     /// Handle logout
     pub fn handle_logout(&self) -> Task<cosmic::Action<Message>> {
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
         Task::perform(
             async move {
                 let mut client = client.lock().await;

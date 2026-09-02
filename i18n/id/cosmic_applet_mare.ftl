@@ -1,17 +1,17 @@
 # Autentikasi
-sign-in = Masuk dengan TIDAL
+sign-in = Masuk dengan QQ Music
 sign-in-prompt = Masuk untuk mengakses musik Anda
-sign-in-title = Masuk ke TIDAL
+sign-in-title = Masuk ke QQ Music
 sign-out = Keluar
 sign-in-button = Masuk
 open-browser = Buka Peramban
 cancel = Batal
 verifying-auth = Memverifikasi autentikasi...
 verifying-auth-wait = Mohon tunggu sementara kami mengonfirmasi login Anda.
-login-step-browser = 1. Buka halaman login TIDAL dan masuk:
+login-step-browser = 1. Buka halaman login QQ Music dan masuk:
 login-returns-here = Setelah masuk, Anda langsung kembali ke sini — tidak ada yang perlu disalin.
 login-step-paste = 2. Peramban lalu menuju halaman yang gagal dimuat. Salin alamatnya dan tempel di sini:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = Selesaikan Masuk
 login-retry = Tautan masuk itu sudah dipakai atau kedaluwarsa — buka peramban lagi dan salin alamat yang baru.
 preparing-login = Menyiapkan login...
@@ -99,7 +99,7 @@ track-count = {$count} lagu
 artist-count = {$count} artis
 
 # Pencarian
-search-placeholder = Cari lagu, album, artis...
+search-placeholder = Cari lagu...
 
 # Debug
 debug-unoptimized = (belum dioptimalkan)
@@ -151,7 +151,7 @@ refresh = Segarkan
 
 # Bagikan
 share = Bagikan
-share-description = Buat URL song.link dan salin ke papan klip
+share-description = Buat URL QQ Music dan salin ke papan klip
 share-track = Bagikan Lagu: {$title}
 share-album = Bagikan Album: {$title}
 

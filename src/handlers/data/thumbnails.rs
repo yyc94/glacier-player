@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Playlist thumbnail generation handlers for Maré Player.
+//! Playlist thumbnail generation handlers for Glacier Player.
 //!
 //! Generates 2×2 album-art grid thumbnails for playlists by compositing
 //! up to 4 distinct cover images into a single circular thumbnail.
@@ -13,7 +13,7 @@ use crate::state::AppModel;
 impl AppModel {
     /// Generate 2×2 album-art grid thumbnails for every loaded playlist.
     ///
-    /// For each playlist we fetch its first few tracks from the TIDAL API and
+    /// For each playlist we fetch its first few tracks from the QQ Music API and
     /// composite the cover art of up to 4 distinct albums into a circular grid.
     /// The finished grid is PNG-cached on disk, so subsequent startups skip the
     /// fetch and composite entirely.
@@ -29,7 +29,7 @@ impl AppModel {
             return Task::none();
         }
 
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
         let image_cache = self.image_cache.clone();
 
         let tasks: Vec<Task<cosmic::Action<Message>>> = playlists

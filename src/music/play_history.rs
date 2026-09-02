@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Local play history for Maré Player.
+//! Local play history for Glacier Player.
 //!
-//! TIDAL's API does not expose a per-track "recently played" endpoint, so we
+//! QQ Music's API does not expose a per-track "recently played" endpoint, so we
 //! maintain one locally.  Each time a track starts playing successfully its
 //! metadata is prepended to an ordered in-memory list and upserted as a single
 //! row into the cache database's `play_history` table.  Duplicates are
@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::tidal::models::Track;
+use crate::music::models::Track;
 
 /// A timestamped history entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]

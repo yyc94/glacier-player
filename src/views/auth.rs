@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Authentication views for Maré Player.
+//! Authentication views for Glacier Player.
 //!
-//! This module contains the login and OAuth waiting views.
+//! This module contains the login and QR waiting views.
 
+use base64::{Engine, engine::general_purpose};
 use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, container, text};
@@ -29,19 +30,21 @@ impl AppModel {
         container(content).width(Length::Fill).align_x(Alignment::Center).align_y(Alignment::Center).into()
     }
 
-    /// Render the login view shown while the user completes the TIDAL sign-in
-    /// in their browser.
-    ///
-    /// Two shapes, depending on what TIDAL was asked to redirect to (see
-    /// [`login_uri`](crate::tidal::login_uri)):
-    ///
-    /// * `tidal://` — the browser hands the code back to us, so there is
-    ///   nothing to do here but wait.
-    /// * https — the browser lands on a page that fails to load, and its
-    ///   address, which carries the code, has to be brought over by hand.
-    pub fn view_awaiting_oauth(&self) -> Element<'_, Message> {
-        let content = if self.is_loading {
-            // Exchanging the code for tokens
+    /// Render the view shown while QQ Music QR authentication is in progress.
+    pub fn view_awaiting_qr(&self) -> Element<'_, Message> {
+        let qr_image = self.qr_login_request.as_ref().and_then(|request| qr_handle(&request.image_data_url));
+        let content = if let Some(handle) = qr_image {
+            let mut col = widget::Column::new()
+                .push(text("Sign in to QQ Music").size(20))
+                .push(text("Scan this QR code in the QQ Music app").size(12))
+                .spacing(10)
+                .align_x(Alignment::Center);
+            col = col.push(widget::image(handle).width(Length::Fixed(220.0)).height(Length::Fixed(220.0)));
+            col.push(text("Waiting for confirmation...").size(12))
+                .push(widget::space::vertical().height(8))
+                .push(button::text(fl!("cancel")).on_press(Message::CancelLogin))
+        } else if self.is_loading {
+            // Waiting for the QR request to complete
             widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
                 .push(widget::space::vertical().height(20))
@@ -50,34 +53,15 @@ impl AppModel {
                 .push(text(fl!("verifying-auth")).size(14))
                 .push(text(fl!("verifying-auth-wait")).size(12))
                 .push(widget::space::vertical().height(20))
-                .push(button::text(fl!("cancel")).on_press(Message::ShowMain))
+                .push(button::text(fl!("cancel")).on_press(Message::CancelLogin))
                 .spacing(8)
                 .align_x(Alignment::Center)
-        } else if let Some(request) = &self.login_request {
-            let mut col = widget::Column::new()
+        } else if self.qr_login_request.is_some() {
+            widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
+                .push(text("Preparing QR code...").size(12))
                 .push(widget::space::vertical().height(10))
-                .push(text(fl!("login-step-browser")).size(12))
-                .push(button::standard(fl!("open-browser")).on_press(Message::OpenLoginUrl))
-                .push(widget::space::vertical().height(15));
-
-            col = if request.delivers_itself {
-                col.push(text(fl!("login-returns-here")).size(12))
-            } else {
-                // No handler for `tidal://` on this desktop: the code stops at
-                // the browser and has to be carried over.
-                col.push(text(fl!("login-step-paste")).size(12))
-                    .push(
-                        widget::text_input(fl!("login-redirect-placeholder"), &self.login_redirect_url)
-                            .on_input(Message::LoginRedirectUrlChanged)
-                            .on_submit(|_| Message::SubmitLoginRedirectUrl)
-                            .width(Length::Fill),
-                    )
-                    .push(button::suggested(fl!("login-finish")).on_press(Message::SubmitLoginRedirectUrl).width(Length::Fill))
-            };
-
-            col.push(widget::space::vertical().height(10))
-                .push(button::text(fl!("cancel")).on_press(Message::ShowMain))
+                .push(button::text(fl!("cancel")).on_press(Message::CancelLogin))
                 .spacing(8)
                 .align_x(Alignment::Center)
         } else {
@@ -93,4 +77,10 @@ impl AppModel {
 
         container(content).width(Length::Fill).align_x(Alignment::Center).align_y(Alignment::Center).padding(20).into()
     }
+}
+
+fn qr_handle(data_url: &str) -> Option<widget::image::Handle> {
+    let encoded = data_url.split_once(",")?.1;
+    let bytes = general_purpose::STANDARD.decode(encoded).ok()?;
+    Some(widget::image::Handle::from_bytes(bytes))
 }

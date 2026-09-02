@@ -1,16 +1,14 @@
 name := 'cosmic-applet-mare'
 standalone-name := 'mare-player'
-video-window-name := 'mare-video-window'
+video-window-name := 'glacier-video-window'
 appid := 'io.github.cosmic-applet-mare'
 features := env('FEATURES', '--all-features')
 rootdir := ''
 prefix := '/usr'
 bloat-target := cargo-target-dir / 'release-bloat' / name
 
-# `install` normally runs under sudo, but the `tidal://` scheme association is
-# per-user config: run that one command back as the invoking user, or it lands
-# in root's home and the sign-in silently falls back to copying a URL.
-as-invoking-user := if env('SUDO_USER', '') != '' { 'sudo -u ' + env('SUDO_USER', '') } else { '' }
+# Installation is otherwise ordinary system-wide packaging; QQ Music login is
+# QR based and does not require a custom URI scheme.
 
 # Installation paths
 
@@ -42,7 +40,7 @@ clean-dist: clean clean-vendor
 build-debug *args:
     cargo build {{ args }}
 
-# Compiles with release profile (applet + the mare-video-window companion that
+# Compiles with release profile (applet + the video-window companion that
 # renders popped-out videos out of process)
 build-release *args: (build-debug '--release' args)
     cargo build --release -p {{ video-window-name }} {{ args }}
@@ -264,14 +262,7 @@ _install profile:
     install -Dm0644 resources/icon.svg {{ icon-symbolic-dst }}
     install -Dm0644 resources/icon.svg {{ icon-scalable-symbolic-dst }}
 
-    # Route `tidal://login/auth?code=…` to the player, so the TIDAL sign-in
-    # returns by itself instead of asking for the URL to be copied.
-    #
-    # The association is per-user while this recipe usually runs under sudo, so
-    # it has to be set as the invoking user — as root it lands in /root and the
-    # sign-in silently falls back to the paste box. Best-effort either way.
     -update-desktop-database {{ base-dir }}/share/applications 2>/dev/null
-    -{{ as-invoking-user }} xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
 
 # Internal: install standalone binary from the given profile plus shared resources.
 
@@ -280,18 +271,18 @@ _install profile:
 _install-standalone profile:
     install -Dm0755 {{ cargo-target-dir / profile / standalone-name }} {{ standalone-bin-dst }}
     sed -e 's|^Exec=cosmic-applet-mare|Exec=mare-player|' \
-        -e 's|^Comment=.*|Comment=Maré Player — TIDAL streaming for COSMIC|' \
+        -e 's|^Comment=.*|Comment=Glacier Player — QQ Music for COSMIC|' \
         -e 's|^NoDisplay=true|NoDisplay=false|' \
         -e '/^X-CosmicApplet=/d' \
         -e '/^X-CosmicHoverPopup=/d' \
         resources/app.desktop > {{ desktop-dst }}
     chmod 644 {{ desktop-dst }}
-    sed -e 's|<summary>.*</summary>|<summary>Maré Player — TIDAL streaming for COSMIC desktop</summary>|' \
-        -e 's|Stream TIDAL from your COSMIC panel\.|Stream TIDAL with|' \
+    sed -e 's|<summary>.*</summary>|<summary>Glacier Player — QQ Music for COSMIC desktop</summary>|' \
+        -e 's|Stream QQ Music from your COSMIC panel\.|Stream QQ Music with|' \
         -e 's|all without leaving|all from a standalone|' \
         -e 's|your desktop\.|COSMIC application.|' \
         -e 's|<binary>cosmic-applet-mare</binary>|<binary>mare-player</binary>|' \
-        -e 's|Maré Player Developers|Maré Player Developers|' \
+        -e 's|Glacier Player Developers|Glacier Player Developers|' \
         -e '/<keyword>applet<\/keyword>/d' \
         -e 's|screenshot_applet\.png|screenshot__SWAP.png|' \
         -e 's|screenshot_standalone\.png|screenshot_applet.png|' \
@@ -305,9 +296,7 @@ _install-standalone profile:
     install -Dm0644 resources/icon.svg {{ icon-symbolic-dst }}
     install -Dm0644 resources/icon.svg {{ icon-scalable-symbolic-dst }}
 
-    # Same `tidal://` handler registration as the applet install — see there.
     -update-desktop-database {{ base-dir }}/share/applications 2>/dev/null
-    -{{ as-invoking-user }} xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
 
 # Installs release build
 install: (_install 'release')

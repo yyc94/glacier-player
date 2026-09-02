@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Track detail view for Maré Player.
+//! Track detail view for Glacier Player.
 //!
 //! Shows recommendations seeded from a specific track, mirroring the
-//! "track page" found in the TIDAL web/desktop client. The track header plus
+//! "track page" found in the QQ Music web/desktop client. The track header plus
 //! three recommendation sections are flattened into a single virtual `List`
 //! (`track_detail_rows`) so only the rows visible in the viewport materialise
 //! and their covers load lazily:
@@ -15,16 +15,16 @@
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
-use cosmic::widget::{self, button, icon, text};
+use cosmic::widget::{self, button, text};
 
 use crate::fl;
 use crate::messages::Message;
+use crate::music::models::{Album, Artist, Track, TrackDetailRow};
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::{Album, Artist, Track, TrackDetailRow};
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, CREDITS_SVG, back_button, fading_header_title, fading_text, fading_text_column, list_item,
-    scrollable_element, virtual_list_row,
+    ARTIST_PICTURE_SIZE, back_button, fading_header_title, fading_text, fading_text_column, list_item, scrollable_element,
+    virtual_list_row,
 };
 
 impl AppModel {
@@ -33,23 +33,9 @@ impl AppModel {
         let fallback_track = fl!("fallback-track");
         let track_title = self.selected_detail_track.as_ref().map(|t| t.title.as_str()).unwrap_or(&fallback_track);
 
-        // Header bar: back button + track title + credits action.
-        //
-        // Lyrics deliberately don't have a button here: the now-playing bar is
-        // always on screen and surfaces its own lyrics icon whenever the
-        // playing track has them, so a second entry point would be redundant.
         let header = widget::Row::new()
             .push(back_button(Message::NavigateBack))
             .push(fading_header_title(track_title))
-            .push({
-                // Credits action: who played on / produced this recording.
-                // Only enabled when a track is selected.
-                let track_for_credits = self.selected_detail_track.clone();
-                let mut ci = icon::from_svg_bytes(CREDITS_SVG);
-                ci.symbolic = true;
-                let btn = button::icon(ci).tooltip(fl!("tooltip-show-credits")).padding(4);
-                if let Some(track) = track_for_credits { btn.on_press(Message::ShowCredits(track)) } else { btn }
-            })
             .spacing(8)
             .align_y(Alignment::Center);
 

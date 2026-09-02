@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Domain-specific row builders for Maré Player list views.
+//! Domain-specific row builders for Glacier Player list views.
 //!
 //! Each method on [`AppModel`] assembles a complete, clickable list-item row
 //! for a particular domain object (track, album, playlist, menu entry).  They
@@ -21,8 +21,8 @@ use cosmic::widget::{self, button, container, icon, text};
 
 use crate::fl;
 use crate::messages::Message;
+use crate::music::models::{Album, Playlist, Track};
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::{Album, Playlist, Track};
 
 use super::constants::THUMBNAIL_SIZE;
 use super::icons::RADIO_SVG;
@@ -96,7 +96,7 @@ pub(crate) fn build_track_row<'a>(
 
     // "Go to track radio" button — shows similar tracks for this track.
     // Hidden inside the track radio view (to prevent recursive radios) and for
-    // videos (TIDAL has no track radio for them — the /tracks/{id}/mix
+    // videos (QQ Music has no track radio for them — the /tracks/{id}/mix
     // endpoint 404s on a video id).
     let trailing = if opts.show_radio_button && !track.is_video {
         let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);

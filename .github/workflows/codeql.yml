@@ -62,7 +62,7 @@ jobs:
           # our own crates have to compile here even on a cache hit — only the
           # dependencies are safe to restore. Without this, a push that changed
           # nothing cargo cares about would analyse almost nothing.
-          cargo clean -p cosmic-applet-mare -p mare-video-window
+          cargo clean -p cosmic-applet-mare -p glacier-video-window
           cargo build --verbose
 
       - name: Perform CodeQL Analysis

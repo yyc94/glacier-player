@@ -2,7 +2,7 @@
 
 //! Integration tests for the config module.
 //!
-//! Tests AudioQuality enum (display_name, to_tidlers, AsRef<str>, Default)
+//! Tests AudioQuality enum (display_name, QQ Music mapping, AsRef<str>, Default)
 //! and Config struct (Default values, field ranges).
 
 // Relax production safety lints for test code — clarity over strictness.
@@ -40,12 +40,12 @@ mod audio_quality_display_name {
 
     #[test]
     fn low_display_name() {
-        assert_eq!(AudioQuality::Low.display_name(), "Low — 96 kbps AAC");
+        assert_eq!(AudioQuality::Low.display_name(), "Low — 128 kbps MP3");
     }
 
     #[test]
     fn high_display_name() {
-        assert_eq!(AudioQuality::High.display_name(), "High — 320 kbps AAC");
+        assert_eq!(AudioQuality::High.display_name(), "High — 320 kbps MP3");
     }
 
     #[test]
@@ -72,6 +72,18 @@ mod audio_quality_display_name {
                 }
             }
         }
+    }
+}
+
+mod audio_quality_qqmusic_mapping {
+    use super::*;
+
+    #[test]
+    fn uses_web_api_stable_integer_codes() {
+        assert_eq!(AudioQuality::Low.qqmusic_file_type(), 13);
+        assert_eq!(AudioQuality::High.qqmusic_file_type(), 12);
+        assert_eq!(AudioQuality::Lossless.qqmusic_file_type(), 7);
+        assert_eq!(AudioQuality::HiRes.qqmusic_file_type(), 1);
     }
 }
 
@@ -115,55 +127,6 @@ mod audio_quality_as_ref {
         for q in &[AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes] {
             let s: &str = q.as_ref();
             assert!(!s.is_empty(), "as_ref() should not be empty for {:?}", q);
-        }
-    }
-}
-
-// ===========================================================================
-// AudioQuality — to_tidlers
-// ===========================================================================
-
-mod audio_quality_to_tidlers {
-    use super::*;
-    use tidlers::client::models::playback::AudioQuality as TidlersQuality;
-
-    #[test]
-    fn low_converts_to_tidlers_low() {
-        let result = AudioQuality::Low.to_tidlers();
-        assert!(matches!(result, TidlersQuality::Low));
-    }
-
-    #[test]
-    fn high_converts_to_tidlers_high() {
-        let result = AudioQuality::High.to_tidlers();
-        assert!(matches!(result, TidlersQuality::High));
-    }
-
-    #[test]
-    fn lossless_converts_to_tidlers_lossless() {
-        let result = AudioQuality::Lossless.to_tidlers();
-        assert!(matches!(result, TidlersQuality::Lossless));
-    }
-
-    #[test]
-    fn hires_converts_to_tidlers_hires() {
-        let result = AudioQuality::HiRes.to_tidlers();
-        assert!(matches!(result, TidlersQuality::HiRes));
-    }
-
-    #[test]
-    fn roundtrip_all_variants() {
-        // Ensure every local variant maps to a distinct tidlers variant
-        let variants = [AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes];
-        let tidlers_debug: Vec<String> = variants.iter().map(|q| format!("{:?}", q.to_tidlers())).collect();
-
-        // All should be distinct
-        for (i, a) in tidlers_debug.iter().enumerate() {
-            for (j, b) in tidlers_debug.iter().enumerate() {
-                if i != j {
-                    assert_ne!(a, b, "to_tidlers collision between variants {i} and {j}");
-                }
-            }
         }
     }
 }

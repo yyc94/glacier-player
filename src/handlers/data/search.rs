@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Search message handlers for Maré Player.
+//! Search message handlers for Glacier Player.
 
 use cosmic::prelude::*;
 
 use crate::messages::Message;
+use crate::music::models::SearchResults;
 use crate::state::AppModel;
-use crate::tidal::models::SearchResults;
 
 // =============================================================================
 // Task Helper Methods
@@ -15,7 +15,7 @@ use crate::tidal::models::SearchResults;
 impl AppModel {
     /// Perform a search query
     pub(crate) fn perform_search(&self, query: String) -> Task<cosmic::Action<Message>> {
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
         let db = self.cache_db.clone();
         let key = format!("search:{query}");
         Task::perform(

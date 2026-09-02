@@ -8,7 +8,7 @@
 //! - Query current track metadata (title, artist, album, artwork)
 //! - Monitor playback state changes
 //!
-//! The interface is exposed at `org.mpris.MediaPlayer2.Mare` on the session bus.
+//! The interface is exposed at `org.mpris.MediaPlayer2.GlacierPlayer` on the session bus.
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ use zbus::{
 };
 
 /// MPRIS player name (appears after org.mpris.MediaPlayer2.)
-const MPRIS_NAME: &str = "Mare";
+const MPRIS_NAME: &str = "GlacierPlayer";
 
 /// D-Bus object path where all MPRIS interfaces are served.
 const MPRIS_OBJECT_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -151,7 +151,7 @@ pub struct MprisMetadata {
 
 impl MprisMetadata {
     /// Build an `MprisMetadata` from a domain `Track`.
-    pub fn from_track(track: &crate::tidal::models::Track) -> Self {
+    pub fn from_track(track: &crate::music::models::Track) -> Self {
         Self {
             track_id: track.id.clone(),
             title: track.title.clone(),
@@ -246,7 +246,7 @@ impl MprisMetadata {
 /// Build the D-Bus object path for a track ID.
 ///
 /// The spec requires unique object paths within the tracklist scope.
-/// If the same TIDAL track appears twice in the queue we disambiguate
+/// If the same QQ Music track appears twice in the queue we disambiguate
 /// by appending the queue position.
 pub fn track_object_path(track_id: &str, queue_index: usize) -> String {
     format!("{}/{}_{}", MPRIS_TRACK_PREFIX, track_id, queue_index)
@@ -412,7 +412,7 @@ impl MprisRoot {
     /// The player identity
     #[zbus(property)]
     fn identity(&self) -> &str {
-        "Maré Player"
+        "Glacier Player"
     }
 
     /// The desktop entry name (matches `APP_ID` in `app.rs`)
@@ -431,13 +431,13 @@ impl MprisRoot {
     /// Supported URI schemes
     #[zbus(property)]
     fn supported_uri_schemes(&self) -> Vec<&str> {
-        vec!["tidal", "https"]
+        vec!["qqmusic", "https"]
     }
 
     /// Supported MIME types
     #[zbus(property)]
     fn supported_mime_types(&self) -> Vec<&str> {
-        vec!["audio/flac", "audio/aac", "audio/mp4"]
+        vec!["audio/flac", "audio/mpeg", "audio/aac", "audio/mp4"]
     }
 }
 

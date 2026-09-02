@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Navigation message handlers for Maré Player.
+//! Navigation message handlers for Glacier Player.
 //!
 //! This module handles view state transitions and navigation between screens.
 //! Detail pages (album, artist, mix, track detail) push the current view onto
@@ -17,7 +17,7 @@ use cosmic::prelude::*;
 use cosmic::widget::text_input;
 use std::sync::LazyLock;
 
-use crate::tidal::models::{Album, Track};
+use crate::music::models::{Album, Track};
 
 use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
@@ -134,8 +134,8 @@ impl AppModel {
         self.view_state = ViewState::Settings;
 
         // Trigger loading of the profile picture if we have one
-        let client = self.tidal_client.blocking_lock();
-        if let crate::tidal::auth::AuthState::Authenticated { profile } = client.auth_state()
+        let client = self.music_client.blocking_lock();
+        if let crate::auth::AuthState::Authenticated { profile } = client.auth_state()
             && let Some(pic_url) = &profile.picture_url
         {
             let urls = vec![pic_url.clone()];
@@ -155,7 +155,7 @@ impl AppModel {
             // Paint the last-seen playlists instantly from cache while the
             // network refreshes them in the background.
             Task::batch([
-                self.read_view_cache::<Vec<crate::tidal::models::Playlist>, _>("library:playlists", |p| {
+                self.read_view_cache::<Vec<crate::music::models::Playlist>, _>("library:playlists", |p| {
                     Message::PlaylistsLoaded(Ok(p))
                 }),
                 self.load_playlists(),
@@ -173,7 +173,7 @@ impl AppModel {
         if self.user_albums.is_empty() {
             self.is_loading = true;
             Task::batch([
-                self.read_view_cache::<Vec<crate::tidal::models::Album>, _>("library:albums", |a| Message::AlbumsLoaded(Ok(a))),
+                self.read_view_cache::<Vec<crate::music::models::Album>, _>("library:albums", |a| Message::AlbumsLoaded(Ok(a))),
                 self.load_albums(),
             ])
         } else {
@@ -188,7 +188,7 @@ impl AppModel {
         if self.user_favorite_tracks.is_empty() {
             self.is_loading = true;
             Task::batch([
-                self.read_view_cache::<Vec<crate::tidal::models::Track>, _>("favorites:tracks", |t| {
+                self.read_view_cache::<Vec<crate::music::models::Track>, _>("favorites:tracks", |t| {
                     Message::FavoriteTracksLoaded(Ok(t))
                 }),
                 self.load_favorite_tracks(),
@@ -206,7 +206,7 @@ impl AppModel {
         if self.user_mixes.is_empty() {
             self.is_loading = true;
             Task::batch([
-                self.read_view_cache::<Vec<crate::tidal::models::Mix>, _>("library:mixes", |m| Message::MixesLoaded(Ok(m))),
+                self.read_view_cache::<Vec<crate::music::models::Mix>, _>("library:mixes", |m| Message::MixesLoaded(Ok(m))),
                 self.load_mixes(),
             ])
         } else {
@@ -243,7 +243,7 @@ impl AppModel {
         if self.user_followed_artists.is_empty() {
             self.is_loading = true;
             Task::batch([
-                self.read_view_cache::<Vec<crate::tidal::models::Artist>, _>("profiles", |a| Message::ProfilesLoaded(Ok(a))),
+                self.read_view_cache::<Vec<crate::music::models::Artist>, _>("profiles", |a| Message::ProfilesLoaded(Ok(a))),
                 self.load_profiles(),
             ])
         } else {
@@ -259,7 +259,7 @@ impl AppModel {
         if self.feed_activities.is_empty() {
             self.is_loading = true;
             Task::batch([
-                self.read_view_cache::<Vec<crate::tidal::models::FeedActivity>, _>("feed", |f| Message::FeedLoaded(Ok(f))),
+                self.read_view_cache::<Vec<crate::music::models::FeedActivity>, _>("feed", |f| Message::FeedLoaded(Ok(f))),
                 self.load_feed(),
             ])
         } else {
@@ -267,7 +267,7 @@ impl AppModel {
         }
     }
 
-    /// Handle show Explore view (TIDAL browse pages).
+    /// Handle show Explore view (QQ Music browse pages).
     ///
     /// Resets the in-view back stack to the root "explore" page and loads
     /// it (always re-fetched — the page is time-sensitive featured content).
@@ -291,7 +291,7 @@ impl AppModel {
         self.selected_playlist_uuid = Some(uuid.clone());
         self.selected_playlist_tracks.clear();
         self.view_state = ViewState::PlaylistDetail;
-        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("playlist:{uuid}:tracks"), |t| {
+        let cache_read = self.read_view_cache::<Vec<crate::music::models::Track>, _>(format!("playlist:{uuid}:tracks"), |t| {
             Message::PlaylistTracksLoaded(Ok(t))
         });
         Task::batch([cache_read, self.load_playlist_tracks(uuid)])
@@ -305,7 +305,7 @@ impl AppModel {
         self.selected_mix_tracks.clear();
         self.is_loading = true;
         self.view_state = ViewState::MixDetail;
-        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("mix:{mix_id}:tracks"), |t| {
+        let cache_read = self.read_view_cache::<Vec<crate::music::models::Track>, _>(format!("mix:{mix_id}:tracks"), |t| {
             Message::MixTracksLoaded(Ok(t))
         });
         Task::batch([cache_read, self.load_mix_tracks(mix_id)])
@@ -334,9 +334,9 @@ impl AppModel {
         self.selected_track_lyrics = None;
         self.current_lyric_index = None;
         self.view_state = ViewState::Lyrics;
-        // Paint last-seen lyrics from the DB instantly, then refresh from TIDAL.
+        // Paint last-seen lyrics from the DB instantly, then refresh from QQ Music.
         Task::batch([
-            self.read_view_cache::<crate::tidal::models::TrackLyrics, _>(format!("lyrics:{track_id}"), |l| {
+            self.read_view_cache::<crate::music::models::TrackLyrics, _>(format!("lyrics:{track_id}"), |l| {
                 Message::TrackLyricsLoaded(Ok(l))
             }),
             self.load_track_lyrics(track_id),
@@ -354,9 +354,9 @@ impl AppModel {
         self.selected_credits_track = Some(track);
         self.selected_track_credits = None;
         self.view_state = ViewState::Credits;
-        // Paint last-seen credits from the DB instantly, then refresh from TIDAL.
+        // Paint last-seen credits from the DB instantly, then refresh from QQ Music.
         Task::batch([
-            self.read_view_cache::<crate::tidal::models::TrackCredits, _>(format!("credits:{track_id}"), |c| {
+            self.read_view_cache::<crate::music::models::TrackCredits, _>(format!("credits:{track_id}"), |c| {
                 Message::TrackCreditsLoaded(Ok(c))
             }),
             self.load_track_credits(track_id),
@@ -414,7 +414,7 @@ impl AppModel {
         self.view_state = ViewState::AlbumDetail;
         // Paint last-seen tracks instantly from cache, then fetch tracks +
         // album review in parallel (review is best-effort).
-        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("album:{album_id}:tracks"), |t| {
+        let cache_read = self.read_view_cache::<Vec<crate::music::models::Track>, _>(format!("album:{album_id}:tracks"), |t| {
             Message::AlbumTracksLoaded(Ok(t))
         });
         let review_read =
@@ -433,7 +433,7 @@ impl AppModel {
         self.view_state = ViewState::AlbumDetail;
 
         // Load album info; paint last-seen tracks from cache, then refresh.
-        let client1 = self.tidal_client.clone();
+        let client1 = self.music_client.clone();
         let id1 = album_id.clone();
 
         let info_task = Task::perform(
@@ -444,7 +444,7 @@ impl AppModel {
             |result| cosmic::Action::App(Message::AlbumInfoLoaded(result)),
         );
 
-        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("album:{album_id}:tracks"), |t| {
+        let cache_read = self.read_view_cache::<Vec<crate::music::models::Track>, _>(format!("album:{album_id}:tracks"), |t| {
             Message::AlbumTracksLoaded(Ok(t))
         });
         let review_read =
@@ -467,10 +467,10 @@ impl AppModel {
 
         // Load artist info, top tracks, and albums in parallel, caching each
         // payload on success and painting the last-seen versions instantly.
-        let client1 = self.tidal_client.clone();
-        let client2 = self.tidal_client.clone();
-        let client3 = self.tidal_client.clone();
-        let client4 = self.tidal_client.clone();
+        let client1 = self.music_client.clone();
+        let client2 = self.music_client.clone();
+        let client3 = self.music_client.clone();
+        let client4 = self.music_client.clone();
         let db1 = self.cache_db.clone();
         let db2 = self.cache_db.clone();
         let db3 = self.cache_db.clone();
@@ -540,19 +540,19 @@ impl AppModel {
             |result| cosmic::Action::App(Message::ArtistVideosLoaded(result)),
         );
 
-        let read_info = self.read_view_cache::<crate::tidal::models::Artist, _>(format!("artist:{artist_id}:info"), |a| {
+        let read_info = self.read_view_cache::<crate::music::models::Artist, _>(format!("artist:{artist_id}:info"), |a| {
             Message::ArtistInfoLoaded(Ok(a))
         });
         let read_tracks = self
-            .read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("artist:{artist_id}:toptracks"), |t| {
+            .read_view_cache::<Vec<crate::music::models::Track>, _>(format!("artist:{artist_id}:toptracks"), |t| {
                 Message::ArtistTopTracksLoaded(Ok(t))
             });
         let read_albums = self
-            .read_view_cache::<Vec<crate::tidal::models::Album>, _>(format!("artist:{artist_id}:albums"), |a| {
+            .read_view_cache::<Vec<crate::music::models::Album>, _>(format!("artist:{artist_id}:albums"), |a| {
                 Message::ArtistAlbumsLoaded(Ok(a))
             });
         let read_videos = self
-            .read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("artist:{artist_id}:videos"), |v| {
+            .read_view_cache::<Vec<crate::music::models::Track>, _>(format!("artist:{artist_id}:videos"), |v| {
                 Message::ArtistVideosLoaded(Ok(v))
             });
 

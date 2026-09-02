@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Album views for Maré Player.
+//! Album views for Glacier Player.
 //!
 //! This module contains the album list view and album detail view.
 //! The detail view shows album metadata (cover, artist, release date, quality,
-//! track count), a favorite heart icon, and a clickable artist name that
-//! navigates to the artist detail view.
+//! track count), and a clickable artist name that navigates to the artist
+//! detail view.
 
 use std::sync::Arc;
 
@@ -21,8 +21,7 @@ use crate::state::AppModel;
 use crate::views::artist::strip_markup;
 use crate::views::components::rows::{build_album_row, build_track_row};
 use crate::views::components::{
-    ALBUM_COVER_SIZE, TrackRowOptions, back_button, fading_header_title, favorite_icon_handle, scrollable_element,
-    scrollable_list, virtual_list_row,
+    ALBUM_COVER_SIZE, TrackRowOptions, back_button, fading_header_title, scrollable_element, scrollable_list, virtual_list_row,
 };
 
 impl AppModel {
@@ -55,24 +54,12 @@ impl AppModel {
         widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
     }
 
-    /// Render the album detail view showing album info, favorite button, and tracks.
+    /// Render the album detail view showing album info and tracks.
     pub fn view_album_detail(&self) -> Element<'_, Message> {
         let fallback_album = fl!("fallback-album");
         let title = self.selected_album.as_ref().map(|a| a.title.as_str()).unwrap_or(&fallback_album);
-        // Header row: back button, title, favorite heart, shuffle button
+        // Header row: back button, title, shuffle button
         let mut header = widget::Row::new().push(back_button(Message::NavigateBack)).push(fading_header_title(title));
-
-        // Favorite heart for the album
-        if let Some(album) = &self.selected_album {
-            let is_favorite = self.favorite_album_ids.contains(&album.id);
-            let tooltip = if is_favorite { fl!("tooltip-remove-from-favorites") } else { fl!("tooltip-add-to-favorites") };
-            header = header.push(
-                button::icon(favorite_icon_handle(is_favorite))
-                    .tooltip(tooltip)
-                    .on_press(Message::ToggleFavoriteAlbum(album.clone()))
-                    .padding(4),
-            );
-        }
 
         // Shuffle button
         header = header.push(
@@ -85,7 +72,7 @@ impl AppModel {
                         Arc::clone(&self.track_list_arc),
                         self.selected_album
                             .as_ref()
-                            .map(|a| crate::tidal::models::PlaybackSource::album(a.id.clone(), a.title.clone())),
+                            .map(|a| crate::music::models::PlaybackSource::album(a.id.clone(), a.title.clone())),
                     ))
                 })
                 .padding(4),
@@ -108,7 +95,7 @@ impl AppModel {
             text(fl!("no-tracks-album")).size(14).into()
         } else {
             let source =
-                self.selected_album.as_ref().map(|a| crate::tidal::models::PlaybackSource::album(a.id.clone(), a.title.clone()));
+                self.selected_album.as_ref().map(|a| crate::music::models::PlaybackSource::album(a.id.clone(), a.title.clone()));
             let loaded_images = &self.loaded_images;
             let opts = TrackRowOptions { tracks: Arc::clone(&self.track_list_arc), source, ..Default::default() };
             let track_list = cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
@@ -127,7 +114,7 @@ impl AppModel {
 
     /// Render the album info section: large cover, artist (clickable), release date,
     /// quality, track count, and duration.
-    fn view_album_info_section(&self, album: &crate::tidal::models::Album) -> Element<'_, Message> {
+    fn view_album_info_section(&self, album: &crate::music::models::Album) -> Element<'_, Message> {
         // Large album cover
         let cover: Element<'_, Message> = if let Some(url) = &album.cover_url
             && let Some(handle) = self.loaded_images.get(url)

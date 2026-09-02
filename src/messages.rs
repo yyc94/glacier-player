@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Application messages for Maré Player.
+//! Application messages for Glacier Player.
 //!
 //! This module defines all the messages that can be sent to update the application state.
 
@@ -11,13 +11,14 @@ use cosmic::iced::window::Id;
 use cosmic::surface;
 use tokio::sync::Mutex;
 
+use crate::auth::QrLoginRequest;
 use crate::config::{AudioQuality, Config, LogLevel};
-use crate::tidal::auth::LoginRequest;
-use crate::tidal::client::PlaybackUrl;
-use crate::tidal::models::{
+use crate::music::models::{
     Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
 };
-use crate::tidal::mpris::{MprisCommand, MprisHandle};
+use crate::music::mpris::{MprisCommand, MprisHandle};
+use crate::qqmusic::PlaybackUrl;
+use crate::qqmusic::QqLoginState;
 
 /// Result type for MPRIS service initialization.
 ///
@@ -41,27 +42,23 @@ pub enum Message {
     /// that miss, which have no UI effect.
     Noop,
     /// Persisted play history finished loading from the cache database.
-    PlayHistoryLoaded(Vec<crate::tidal::play_history::HistoryEntry>),
+    PlayHistoryLoaded(Vec<crate::music::play_history::HistoryEntry>),
     /// Configuration was updated
     UpdateConfig(Config),
 
     // Authentication
     /// Start the login flow
     StartLogin,
-    /// The PKCE authorize URL is ready (or the flow failed to start)
-    LoginUrlReceived(Result<LoginRequest, String>),
-    /// Open the TIDAL authorize URL in the browser
-    OpenLoginUrl,
-    /// The user edited the pasted redirect URL
-    LoginRedirectUrlChanged(String),
-    /// Exchange the pasted redirect URL for tokens
-    SubmitLoginRedirectUrl,
-    /// The login callback service started (or failed to)
-    LoginUriServiceStarted(Result<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>, String>),
-    /// The browser handed us a `tidal://login/auth?code=…` URI
-    LoginCallbackUri(String),
+    /// Cancel the active QR login and return to the login view.
+    CancelLogin,
+    /// The QR login request is ready (or the flow failed to start)
+    QrCodeReady(Result<QrLoginRequest, String>),
     /// Login flow completed
     LoginComplete(Result<(), String>),
+    /// Poll the active QQ Music QR login.
+    QqQrPoll,
+    /// Result of one QQ Music QR login poll.
+    QqQrStatus(Result<QqLoginState, String>),
     /// Session restore attempted
     SessionRestored(Result<bool, String>),
     /// Log out the user
@@ -88,7 +85,7 @@ pub enum Message {
     ShowMixes,
     /// Show the feed view (new releases from followed artists)
     ShowFeed,
-    /// Show the Explore view (TIDAL browse: featured/genres/moods/decades)
+    /// Show the Explore view (QQ Music browse: featured/genres/moods/decades)
     ShowExplore,
     /// Show the playlists list
     ShowPlaylists,
@@ -117,7 +114,7 @@ pub enum Message {
     /// Feed activities loaded
     FeedLoaded(Result<Vec<FeedActivity>, String>),
 
-    // Explore (TIDAL browse pages)
+    // Explore (QQ Music browse pages)
     /// Load an Explore page by slug, pushing the current one onto the
     /// in-view back stack (genres/moods/decades drill down recursively).
     LoadExplorePage(String),
@@ -141,7 +138,7 @@ pub enum Message {
     ShowTrackRadio(Track),
     /// Track radio loaded: `(mix_id, tracks)`.  Track radio is a
     /// track-seeded Mix; the mix id lets plays attribute as
-    /// `MIX:<mix_id>` so they surface in TIDAL's Recently Played.
+    /// Keep the source context alongside the queue for local display.
     TrackRadioLoaded(Result<(String, Vec<Track>), String>),
 
     // Track Lyrics
@@ -149,7 +146,7 @@ pub enum Message {
     ShowLyrics(Track),
     /// Lyrics fetch completed (`Ok(TrackLyrics::default())` for tracks
     /// with no lyrics; only `Err` for genuine network/parse failures).
-    TrackLyricsLoaded(Result<crate::tidal::models::TrackLyrics, String>),
+    TrackLyricsLoaded(Result<crate::music::models::TrackLyrics, String>),
     /// Background availability check for the now-playing track finished:
     /// `(track_id, has_lyrics)`. Drives whether the now-playing bar shows the
     /// lyrics icon.
@@ -160,7 +157,7 @@ pub enum Message {
     ShowCredits(Track),
     /// Credits fetch completed (`Ok(TrackCredits::default())` for tracks with
     /// no credits; only `Err` for genuine network/parse failures).
-    TrackCreditsLoaded(Result<crate::tidal::models::TrackCredits, String>),
+    TrackCreditsLoaded(Result<crate::music::models::TrackCredits, String>),
 
     // Track Detail (recommendations from a track)
     /// Show track detail view (more albums by artist, related albums, related artists)
@@ -243,7 +240,7 @@ pub enum Message {
     // Track actions
     /// Play a list of tracks starting from a specific index, with optional
     /// container source (album/playlist/mix/etc.).  The source feeds both
-    /// the now-playing bar's display label and TIDAL play attribution.
+    /// the now-playing bar's display label.
     PlayTrackList(Arc<[Track]>, usize, Option<PlaybackSource>),
     /// Shuffle and play a list of tracks, with optional container source.
     ShufflePlay(Arc<[Track]>, Option<PlaybackSource>),
@@ -254,7 +251,7 @@ pub enum Message {
     /// Toggle shuffle mode (used by MPRIS SetShuffle; not directly used in UI)
     ToggleShuffle,
     /// Set loop/repeat mode to a specific value (used by MPRIS SetLoopStatus)
-    SetLoopStatus(crate::tidal::mpris::LoopStatus),
+    SetLoopStatus(crate::music::mpris::LoopStatus),
     /// Cycle through playback modes: Off → Shuffle → Repeat All → Repeat Track → Off.
     /// This is the single UI-facing action that manages both shuffle and loop status.
     CyclePlaybackMode,
@@ -284,7 +281,7 @@ pub enum Message {
     /// Preload the next track for gapless playback
     PreloadNextTrack,
     /// Debounced playback-URL resolution: carries the request version so a
-    /// burst of rapid skips collapses into one TIDAL request.
+    /// burst of rapid skips collapses into one QQ Music request.
     ResolvePlaybackDebounced(u64),
     /// Preload URL received for gapless playback
     PreloadUrlReceived(Result<(Track, PlaybackUrl), String>),
@@ -304,24 +301,25 @@ pub enum Message {
     /// Request to load an image (url)
     LoadImage(String),
 
-    // Sharing (song.link integration)
+    // Sharing
     /// Show share prompt for current track
     ShowSharePrompt(Track),
-    /// Share a track: audio via song.link, a music video via a direct TIDAL
-    /// video link (song.link doesn't index videos). (track_id, track_title, is_video)
+    /// Share a track via a QQ Music page (track_id, track_title, is_video).
     ShareTrack(String, String, bool),
-    /// Share an album via song.link (album_id, album_title)
+    /// Share an album via a QQ Music page (album_id, album_title)
     ShareAlbum(String, String),
     /// Cancel share dialog
     CancelShare,
-    /// Result of generating a song.link URL
-    ShareLinkGenerated(Result<String, String>),
 
     // Settings
     /// Set audio quality preference
     SetAudioQuality(AudioQuality),
     /// Set the console/journal log verbosity
     SetLogLevel(LogLevel),
+    /// Edit the QQMusicApi Web service endpoint draft.
+    QqMusicApiUrlChanged(String),
+    /// Validate and apply the QQMusicApi Web service endpoint draft.
+    ApplyQqMusicApiUrl,
     /// Clear the local play history
     ClearHistory,
 
@@ -351,7 +349,7 @@ pub enum Message {
     ScreenshotCaptured(Screenshot),
 
     // Debug / API discovery
-    /// Probe the TIDAL Feed page endpoint and dump the raw JSON structure.
+    /// Probe the QQ Music Feed page endpoint and dump the raw JSON structure.
     ProbeFeedPage,
     /// Result of the feed page probe.
     FeedProbeResult(Result<String, String>),

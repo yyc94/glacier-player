@@ -1,17 +1,17 @@
 # Xác thực
-sign-in = Đăng nhập bằng TIDAL
+sign-in = Đăng nhập bằng QQ Music
 sign-in-prompt = Đăng nhập để truy cập nhạc của bạn
-sign-in-title = Đăng nhập vào TIDAL
+sign-in-title = Đăng nhập vào QQ Music
 sign-out = Đăng xuất
 sign-in-button = Đăng nhập
 open-browser = Mở trình duyệt
 cancel = Hủy
 verifying-auth = Đang xác minh xác thực...
 verifying-auth-wait = Vui lòng chờ trong khi chúng tôi xác nhận đăng nhập của bạn.
-login-step-browser = 1. Mở trang đăng nhập TIDAL và đăng nhập:
+login-step-browser = 1. Mở trang đăng nhập QQ Music và đăng nhập:
 login-returns-here = Đăng nhập xong bạn sẽ quay lại đây ngay — không cần sao chép gì.
 login-step-paste = 2. Sau đó trình duyệt sẽ tới một trang không tải được. Sao chép địa chỉ của trang đó và dán vào đây:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = Hoàn tất đăng nhập
 login-retry = Liên kết đăng nhập đó đã dùng rồi hoặc đã hết hạn — mở lại trình duyệt và sao chép địa chỉ mới.
 preparing-login = Đang chuẩn bị đăng nhập...
@@ -99,7 +99,7 @@ track-count = {$count} bài hát
 artist-count = {$count} nghệ sĩ
 
 # Tìm kiếm
-search-placeholder = Tìm bài hát, album, nghệ sĩ...
+search-placeholder = Tìm bài hát...
 
 # Gỡ lỗi
 debug-unoptimized = (chưa tối ưu)
@@ -151,7 +151,7 @@ refresh = Làm mới
 
 # Chia sẻ
 share = Chia sẻ
-share-description = Tạo URL song.link và sao chép vào clipboard
+share-description = Tạo URL QQ Music và sao chép vào clipboard
 share-track = Chia sẻ bài hát: {$title}
 share-album = Chia sẻ album: {$title}
 

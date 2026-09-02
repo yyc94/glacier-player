@@ -1,17 +1,17 @@
 # Authentication
-sign-in = Sign in with TIDAL
+sign-in = Sign in with QQ Music
 sign-in-prompt = Sign in to access your music
-sign-in-title = Sign in to TIDAL
+sign-in-title = Sign in to QQ Music
 sign-out = Sign Out
 sign-in-button = Sign In
 open-browser = Open Browser
 cancel = Cancel
 verifying-auth = Verifying authentication...
 verifying-auth-wait = Please wait while we confirm your login.
-login-step-browser = 1. Open the TIDAL login page and sign in:
+login-step-browser = 1. Open the QQ Music login page and sign in:
 login-returns-here = Signing in will bring you straight back here — nothing to copy.
 login-step-paste = 2. The browser then lands on a page that fails to load. Copy its address and paste it here:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = Finish Sign In
 login-retry = That sign-in link was already used or has expired — open the browser again and copy the new address.
 preparing-login = Preparing login...
@@ -125,7 +125,7 @@ artist-count = {$count} {$count ->
 }
 
 # Search
-search-placeholder = Search tracks, albums, artists...
+search-placeholder = Search tracks...
 
 # Debug
 debug-unoptimized = (unoptimized)
@@ -180,7 +180,7 @@ refresh = Refresh
 
 # Share
 share = Share
-share-description = Generate a song.link URL and copy to clipboard
+share-description = Generate a QQ Music URL and copy to clipboard
 share-track = Share Track: {$title}
 share-album = Share Album: {$title}
 

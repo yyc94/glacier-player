@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Play history view for Maré Player.
+//! Play history view for Glacier Player.
 //!
 //! This module renders the locally-tracked "Recently Played" track list
 //! using iced's virtual [`List`](cosmic::iced::widget::list::List) widget, which only materialises the rows
@@ -51,7 +51,7 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-history"))),
+                            Some(crate::music::models::PlaybackSource::ad_hoc(fl!("context-history"))),
                         ))
                     })
                     .padding(4),
@@ -89,7 +89,7 @@ impl AppModel {
             let loaded_images = &self.loaded_images;
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-history"))),
+                source: Some(crate::music::models::PlaybackSource::ad_hoc(fl!("context-history"))),
                 fallback_icon: "document-open-recent-symbolic",
                 ..Default::default()
             };

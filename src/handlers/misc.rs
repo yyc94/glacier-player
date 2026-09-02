@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Miscellaneous message handlers for Maré Player.
+//! Miscellaneous message handlers for Glacier Player.
 //!
 //! This module handles configuration updates, error management,
-//! image loading, sharing (song.link), MPRIS integration, and
+//! image loading, sharing (QQ Music links), MPRIS integration, and
 //! in-app screenshot capture (**Ctrl+Shift+S**).
 
 use std::sync::Arc;
@@ -11,11 +11,11 @@ use std::sync::Arc;
 use crate::config::{AudioQuality, Config, LogLevel};
 use crate::image_cache::{IMAGE_RENDER_MAX_PX, make_circular};
 use crate::messages::{Message, MprisStartResult};
-use crate::state::{AppModel, ViewState};
-use crate::tidal::mpris::{
+use crate::music::mpris::{
     LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState, MprisTrackEntry, track_object_path,
 };
-use crate::tidal::player::PlaybackState;
+use crate::music::player::PlaybackState;
+use crate::state::{AppModel, ViewState};
 use cosmic::Application;
 use cosmic::cosmic_config::CosmicConfigEntry;
 
@@ -23,8 +23,8 @@ use cosmic::prelude::*;
 
 /// Load play history from the cache database's `play_history` table,
 /// most-recent first. Run when the database finishes opening.
-pub(crate) async fn load_play_history(db: &crate::cache::Db) -> Vec<crate::tidal::play_history::HistoryEntry> {
-    use crate::tidal::play_history::HistoryEntry;
+pub(crate) async fn load_play_history(db: &crate::cache::Db) -> Vec<crate::music::play_history::HistoryEntry> {
+    use crate::music::play_history::HistoryEntry;
     db.get_play_history().await.iter().filter_map(|b| serde_json::from_slice::<HistoryEntry>(b).ok()).collect()
 }
 
@@ -41,7 +41,36 @@ impl AppModel {
 
     /// Handle config update
     pub fn handle_update_config(&mut self, config: Config) {
+        if config.qqmusic_api_url != self.config.qqmusic_api_url {
+            let mut client = self.music_client.blocking_lock();
+            if let Err(error) = client.set_base_url(&config.qqmusic_api_url) {
+                self.error_message = Some(error.to_string());
+                return;
+            }
+        }
+        self.qqmusic_api_url_draft = config.qqmusic_api_url.clone();
         self.config = config;
+    }
+
+    pub fn handle_set_qqmusic_api_url(&mut self) {
+        let url = self.qqmusic_api_url_draft.trim().to_string();
+        if url.is_empty() {
+            return;
+        }
+        let mut client = self.music_client.blocking_lock();
+        match client.set_base_url(&url) {
+            Ok(()) => {
+                self.config.qqmusic_api_url = url;
+                self.qqmusic_api_url_draft = self.config.qqmusic_api_url.clone();
+                if let Ok(context) = cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
+                    && let Err(error) = self.config.write_entry(&context)
+                {
+                    tracing::error!("failed to save QQMusicApi URL: {error}");
+                }
+                self.error_message = None;
+            }
+            Err(error) => self.error_message = Some(error.to_string()),
+        }
     }
 
     /// Handle clear error message
@@ -118,7 +147,7 @@ impl AppModel {
 
     /// Persist the most-recently-recorded play-history entry (fire-and-forget).
     ///
-    /// Call this straight after [`PlayHistory::record`](crate::tidal::play_history::PlayHistory::record),
+    /// Call this straight after [`PlayHistory::record`](crate::music::play_history::PlayHistory::record),
     /// which puts the new entry at the front. Upserts that single row into the
     /// `play_history` table (dedup + move-to-front by track id) rather than
     /// rewriting the whole history. A no-op when the database isn't open yet,
@@ -146,7 +175,7 @@ impl AppModel {
     }
 
     /// Delete all persisted play history (fire-and-forget). Pairs with
-    /// [`PlayHistory::clear`](crate::tidal::play_history::PlayHistory::clear).
+    /// [`PlayHistory::clear`](crate::music::play_history::PlayHistory::clear).
     pub(crate) fn clear_persisted_play_history(&self) {
         let Some(db) = self.cache_db.clone() else {
             return;
@@ -173,8 +202,8 @@ impl AppModel {
             tracing::error!("Failed to save audio quality config: {}", e);
         }
 
-        // Apply to the TIDAL client
-        let client = self.tidal_client.clone();
+        // Apply to the QQ Music client
+        let client = self.music_client.clone();
 
         Task::perform(
             async move {
@@ -186,7 +215,7 @@ impl AppModel {
     }
 
     /// Handle show share prompt
-    pub fn handle_show_share_prompt(&mut self, track: crate::tidal::models::Track) {
+    pub fn handle_show_share_prompt(&mut self, track: crate::music::models::Track) {
         let track_id = track.id.clone();
         let track_title = track.title.clone();
         let album_id = track.album_id.clone();
@@ -199,31 +228,19 @@ impl AppModel {
         // Return to previous view
         self.view_state = ViewState::Main;
 
-        if is_video {
-            // song.link (Odesli) indexes songs/albums, not music videos, so a
-            // `/track/<video_id>` lookup 400s. Share the direct TIDAL video
-            // link instead (copied + opened, no cross-platform resolution).
-            let url = format!("https://tidal.com/browse/video/{}", track_id);
-            tracing::info!("Sharing TIDAL video link for: {}", track_title);
-            return self.copy_and_open_share(url);
-        }
-
-        let tidal_url = format!("https://tidal.com/browse/track/{}", track_id);
-        tracing::info!("Generating song.link for track: {}", track_title);
-        Task::perform(async move { crate::helpers::generate_songlink(&tidal_url).await }, |result| {
-            cosmic::Action::App(Message::ShareLinkGenerated(result))
-        })
+        let _ = is_video;
+        let url = format!("https://y.qq.com/n/ryqq/songDetail/{track_id}");
+        tracing::info!("Sharing QQ Music link for: {}", track_title);
+        self.copy_and_open_share(url)
     }
 
     /// Handle share album
     pub fn handle_share_album(&mut self, album_id: String, album_title: String) -> Task<cosmic::Action<Message>> {
-        let tidal_url = format!("https://tidal.com/browse/album/{}", album_id);
-        tracing::info!("Generating song.link for album: {}", album_title);
         // Return to previous view
         self.view_state = ViewState::Main;
-        Task::perform(async move { crate::helpers::generate_songlink(&tidal_url).await }, |result| {
-            cosmic::Action::App(Message::ShareLinkGenerated(result))
-        })
+        let url = format!("https://y.qq.com/n/ryqq/albumDetail/{album_id}");
+        tracing::info!("Sharing QQ Music album link for: {}", album_title);
+        self.copy_and_open_share(url)
     }
 
     /// Handle cancel share
@@ -232,8 +249,7 @@ impl AppModel {
     }
 
     /// Copy `url` to the clipboard, open it in the browser, and show a brief
-    /// confirmation. Shared by the song.link result handler and the direct
-    /// video-link share path.
+    /// confirmation.
     fn copy_and_open_share(&mut self, url: String) -> Task<cosmic::Action<Message>> {
         let url_for_clipboard = url.clone();
         let url_for_browser = url.clone();
@@ -254,21 +270,6 @@ impl AppModel {
             },
             |_| cosmic::Action::App(Message::ClearError),
         )
-    }
-
-    /// Handle share link generated
-    pub fn handle_share_link_generated(&mut self, result: Result<String, String>) -> Task<cosmic::Action<Message>> {
-        match result {
-            Ok(url) => {
-                tracing::info!("Song.link generated: {}", url);
-                self.copy_and_open_share(url)
-            }
-            Err(e) => {
-                tracing::error!("Failed to generate share link: {}", e);
-                self.error_message = Some(format!("Failed to generate share link: {}", e));
-                Task::none()
-            }
-        }
     }
 
     /// Handle MPRIS service started
@@ -293,12 +294,12 @@ impl AppModel {
         tracing::debug!("Received MPRIS command: {:?}", cmd);
         match cmd {
             MprisCommand::Play => {
-                if self.playback_state == crate::tidal::player::PlaybackState::Paused {
+                if self.playback_state == crate::music::player::PlaybackState::Paused {
                     return Task::done(cosmic::Action::App(Message::TogglePlayPause));
                 }
             }
             MprisCommand::Pause => {
-                if self.playback_state == crate::tidal::player::PlaybackState::Playing {
+                if self.playback_state == crate::music::player::PlaybackState::Playing {
                     return Task::done(cosmic::Action::App(Message::TogglePlayPause));
                 }
             }
@@ -392,24 +393,24 @@ impl AppModel {
     /// Parse and handle a URI received via MPRIS `OpenUri`.
     ///
     /// Supported formats:
-    /// - `tidal://track/{id}`
-    /// - `tidal://album/{id}`
-    /// - `tidal://playlist/{uuid}`
-    /// - `tidal://artist/{id}`
-    /// - `tidal://mix/{id}`
-    /// - `https://tidal.com/browse/track/{id}`
-    /// - `https://listen.tidal.com/track/{id}` (and album/playlist/artist/mix)
-    /// - `https://tidal.com/track/{id}` (short form)
+    /// - `qqmusic://track/{id}` (and album/playlist/artist)
+    /// - `https://y.qq.com/n/ryqq/songDetail/{mid}`
+    /// - `https://y.qq.com/n/ryqq/albumDetail/{id}`
     fn handle_mpris_open_uri(&mut self, uri: String) -> Task<cosmic::Action<Message>> {
         tracing::info!("MPRIS OpenUri requested: {}", uri);
 
         // Normalise: strip the scheme/host prefix down to "{type}/{id}"
-        let path = uri
-            .strip_prefix("tidal://")
-            .or_else(|| uri.strip_prefix("https://tidal.com/browse/"))
-            .or_else(|| uri.strip_prefix("https://listen.tidal.com/"))
-            .or_else(|| uri.strip_prefix("https://tidal.com/"))
-            .unwrap_or("");
+        let path = if let Some(path) = uri.strip_prefix("qqmusic://") {
+            path.to_string()
+        } else if let Some(id) = uri.strip_prefix("https://y.qq.com/n/ryqq/songDetail/") {
+            format!("track/{id}")
+        } else if let Some(id) = uri.strip_prefix("https://y.qq.com/n/ryqq/albumDetail/") {
+            format!("album/{id}")
+        } else if let Some(id) = uri.strip_prefix("https://y.qq.com/n/ryqq/playlist/") {
+            format!("playlist/{id}")
+        } else {
+            String::new()
+        };
 
         // Split into (resource_type, id).  Handle optional trailing slashes
         // or query strings: "track/12345?foo=bar" → ("track", "12345")
@@ -430,7 +431,7 @@ impl AppModel {
         match resource_type {
             "track" => {
                 // Fetch track metadata, then play it as a single-track queue
-                let client = self.tidal_client.clone();
+                let client = self.music_client.clone();
                 return Task::perform(
                     async move {
                         let client = client.lock().await;
@@ -440,7 +441,7 @@ impl AppModel {
                         Ok(track) => cosmic::Action::App(Message::PlayTrackList(
                             Arc::from(vec![track]),
                             0,
-                            Some(crate::tidal::models::PlaybackSource::ad_hoc("MPRIS OpenUri".to_string())),
+                            Some(crate::music::models::PlaybackSource::ad_hoc("MPRIS OpenUri".to_string())),
                         )),
                         Err(e) => {
                             tracing::error!("MPRIS OpenUri: failed to fetch track: {}", e);
@@ -630,7 +631,7 @@ impl AppModel {
             return;
         };
 
-        // Build output path: ~/Pictures/mare-player-<timestamp>.png
+        // Build output path: ~/Pictures/glacier-player-<timestamp>.png
         let pictures_dir = dirs::picture_dir()
             .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp")).join("Pictures"));
 
@@ -640,7 +641,7 @@ impl AppModel {
         }
 
         let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-        let filename = format!("mare-player-{timestamp}.png");
+        let filename = format!("glacier-player-{timestamp}.png");
         let path = pictures_dir.join(&filename);
 
         match buf.save(&path) {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! View rendering modules for Maré Player.
+//! View rendering modules for Glacier Player.
 //!
 //! This module contains all the UI rendering code, split by screen/component:
 //!
@@ -17,7 +17,7 @@
 //! - `profiles` - Followed artists (profiles) view
 //! - `search` - Search view
 //! - `settings` - Settings view
-//! - `auth` - Login and OAuth waiting views
+//! - `auth` - Login and QR waiting views
 //! - `share` - Share prompt dialog
 //! - `components` - Reusable UI components (thumbnail, track row, header, etc.)
 //! - `visualizer` - Audio spectrum visualizer widget

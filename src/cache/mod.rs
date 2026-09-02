@@ -10,7 +10,7 @@
 //! * **image cache** — artwork blobs (replacing the on-disk image partition);
 //! * **play history** — one row per played track (dedup + move-to-front by
 //!   track id, ordered by play time); the only *non-disposable* table, since
-//!   TIDAL exposes no "recently played" endpoint to rebuild it from.
+//!   QQ Music exposes no "recently played" endpoint to rebuild it from.
 //!
 //! Songs are deliberately **not** stored here — large audio stays on the
 //! filesystem so it can be streamed and seeked while still downloading. Videos
@@ -25,7 +25,7 @@
 //!
 //! ## Disposability
 //!
-//! Everything here is a cache: it can always be rebuilt from TIDAL. So instead
+//! Everything here is a cache: it can always be rebuilt from QQ Music. So instead
 //! of migrations we stamp `PRAGMA user_version` and **drop + recreate** the
 //! tables whenever [`SCHEMA_VERSION`] changes. That also de-risks running a
 //! beta database engine — a corrupt or incompatible file just triggers a cold

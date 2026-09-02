@@ -87,7 +87,7 @@ jobs:
           else
             # Applet: also build the out-of-process video-window companion
             # (referenced by the applet .deb/.rpm assets and bundled below).
-            cargo build --release -p mare-video-window
+            cargo build --release -p glacier-video-window
           fi
 
       - name: Build .deb package
@@ -106,7 +106,7 @@ jobs:
           cp target/release/${{ matrix.binary }} "$DIR/"
           # Applet bundles the out-of-process video-window companion too.
           if [ "${{ matrix.variant }}" = "applet" ]; then
-            cp target/release/mare-video-window "$DIR/"
+            cp target/release/glacier-video-window "$DIR/"
           fi
           cp resources/app.desktop "$DIR/${{ env.APP_ID }}.desktop"
           cp resources/app.metainfo.xml "$DIR/${{ env.APP_ID }}.metainfo.xml"
@@ -213,6 +213,11 @@ jobs:
           echo '----- generated release notes -----'
           cat RELEASE_NOTES.md
 
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          name: ${{ steps.meta.outputs.release_name }}
+          draft: false
           body_path: RELEASE_NOTES.md
           files: |
             release/*.deb

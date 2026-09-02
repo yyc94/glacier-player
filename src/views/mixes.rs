@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Mixes & Radio views for Maré Player.
+//! Mixes & Radio views for Glacier Player.
 //!
 //! This module contains the mixes list view (personalized mixes from the
-//! TIDAL home feed) and the mix detail view showing tracks in a selected mix.
+//! QQ Music home feed) and the mix detail view showing tracks in a selected mix.
 //!
 //! The mix detail track list uses iced's virtual [`List`](cosmic::iced::widget::list::List) widget so that only
 //! the rows visible in the viewport are materialised.
@@ -17,8 +17,8 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
+use crate::music::models::Mix;
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::Mix;
 use crate::views::components::rows::{build_thumbnail, build_track_row};
 use crate::views::components::{
     TrackRowOptions, back_button, fading_header_title, fading_text_column, list_item, scrollable_element, virtual_list_row,
@@ -79,7 +79,7 @@ impl AppModel {
                             Arc::clone(&self.track_list_arc),
                             match (&self.selected_mix_id, &self.selected_mix_name) {
                                 (Some(id), Some(name)) => {
-                                    Some(crate::tidal::models::PlaybackSource::mix(id.clone(), name.clone()))
+                                    Some(crate::music::models::PlaybackSource::mix(id.clone(), name.clone()))
                                 }
                                 _ => None,
                             },
@@ -97,7 +97,7 @@ impl AppModel {
         } else {
             let loaded_images = &self.loaded_images;
             let source = match (&self.selected_mix_id, &self.selected_mix_name) {
-                (Some(id), Some(name)) => Some(crate::tidal::models::PlaybackSource::mix(id.clone(), name.clone())),
+                (Some(id), Some(name)) => Some(crate::music::models::PlaybackSource::mix(id.clone(), name.clone())),
                 _ => None,
             };
             let opts = TrackRowOptions { tracks: Arc::clone(&self.track_list_arc), source, ..Default::default() };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Shared constants and small utility functions for Maré Player views.
+//! Shared constants and small utility functions for Glacier Player views.
 //!
 //! Gathers all magic numbers (sizes, thresholds, steps) and the tiny helpers
 //! that only depend on them into one place so they are easy to find and tune

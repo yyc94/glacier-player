@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Handle to the out-of-process music-video window (`mare-video-window`).
+//! Handle to the out-of-process music-video window (`glacier-video-window`).
 //!
 //! A COSMIC panel applet cannot spawn a real toplevel window — the libcosmic
 //! applet runtime parents every surface it creates back into the panel. So to
@@ -13,14 +13,14 @@
 //! thread reads the child's stdout (one event per line) and forwards each line
 //! over an [`tokio::sync::mpsc::UnboundedSender`] that the app drains via a
 //! subscription. See `docs/video-popout-plan.md` and the companion crate
-//! `mare-video-window` for the line protocol.
+//! `glacier-video-window` for the line protocol.
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 
 use tokio::sync::mpsc::UnboundedSender;
 
-/// A running `mare-video-window` child process and the writer half of its
+/// A running `glacier-video-window` child process and the writer half of its
 /// stdin pipe. Dropping (or [`kill`](Self::kill)ing) it terminates the child.
 pub struct VideoWindowChild {
     child: Child,
@@ -109,17 +109,17 @@ impl Drop for VideoWindowChild {
     }
 }
 
-/// Locate the `mare-video-window` binary: prefer a sibling of the running
+/// Locate the `glacier-video-window` binary: prefer a sibling of the running
 /// executable (covers dev `target/{debug,release}/` and installed `/usr/bin/`),
 /// then fall back to bare name resolution via `PATH`.
 fn locate_binary() -> std::path::PathBuf {
     if let Ok(exe) = std::env::current_exe()
         && let Some(dir) = exe.parent()
     {
-        let sibling = dir.join("mare-video-window");
+        let sibling = dir.join("glacier-video-window");
         if sibling.exists() {
             return sibling;
         }
     }
-    std::path::PathBuf::from("mare-video-window")
+    std::path::PathBuf::from("glacier-video-window")
 }

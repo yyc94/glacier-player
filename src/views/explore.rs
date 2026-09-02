@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Explore view for Maré Player.
+//! Explore view for Glacier Player.
 //!
-//! Renders TIDAL's browse pages (`/v1/pages/{path}`): a Featured carousel,
+//! Renders QQ Music's browse pages (`/v1/pages/{path}`): a Featured carousel,
 //! plus clouds of links (Genres, Moods & Activities, Decades, More) and
 //! content lists (albums/playlists/artists).  Link clouds drill down into
 //! sub-pages recursively; an in-view back button pops the stack.
@@ -18,8 +18,8 @@ use cosmic::widget::{self, button, text};
 
 use crate::fl;
 use crate::messages::Message;
+use crate::music::models::{ExploreRow, ExploreTarget};
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::{ExploreRow, ExploreTarget};
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{back_button, fading_text_column, list_item, scrollable_element, virtual_list_row};
 

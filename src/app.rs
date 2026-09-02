@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! COSMIC application implementation for Maré Player.
+//! COSMIC application implementation for Glacier Player.
 //!
 //! This module wires up the [`cosmic::Application`] trait — defining the
 //! init, update, view, and subscription lifecycle — and re-exports the
@@ -11,7 +11,8 @@ use crate::config::Config;
 use crate::image_cache::ImageCache;
 #[cfg(not(feature = "panel-applet"))]
 use crate::menu;
-use crate::tidal::{client::TidalAppClient, player::PlaybackState};
+use crate::music::player::PlaybackState;
+use crate::qqmusic::QqMusicAppClient;
 use crate::views::visualizer::VisualizerState;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::keyboard::Key;
@@ -57,7 +58,7 @@ impl cosmic::Application for AppModel {
     ) -> (Self, Task<cosmic::Action<Self::Message>>) {
         // In standalone mode, set the CSD header bar title early on core.
         #[cfg(not(feature = "panel-applet"))]
-        core.set_header_title("Maré Player".to_string());
+        core.set_header_title("Glacier Player".to_string());
 
         let config = cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
             .map(|context| match Config::get_entry(&context) {
@@ -81,16 +82,16 @@ impl cosmic::Application for AppModel {
 
         let image_cache_max_mb = config.image_cache_max_mb;
         let saved_volume = config.volume_level.clamp(0.0, 1.0);
+        let qqmusic_api_url_draft = config.qqmusic_api_url.clone();
 
-        // The TidalAppClient is built up-front (it owns the DASH-manifest disk
-        // cache and is shared via an Arc). Play history is loaded from the
+        // The QQMusicApi client is built up-front and shared via an Arc. Play history is loaded from the
         // cache database asynchronously once it opens (see
         // `Message::CacheDbReady`); it starts empty here.
-        let client = TidalAppClient::new();
-        let play_history = crate::tidal::play_history::PlayHistory::new();
+        let client = QqMusicAppClient::new(&config.qqmusic_api_url);
+        let play_history = crate::music::play_history::PlayHistory::new();
 
         // Channel for events streamed back from the popped-out video child
-        // process (`mare-video-window`); drained by a subscription.
+        // process (`glacier-video-window`); drained by a subscription.
         let (video_window_tx, video_window_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
 
         // `app` is only mutated in standalone mode (`app.set_window_title`);
@@ -99,8 +100,9 @@ impl cosmic::Application for AppModel {
         let mut app = AppModel {
             core,
             config,
+            qqmusic_api_url_draft,
             popup: None,
-            tidal_client: Arc::new(Mutex::new(client)),
+            music_client: Arc::new(Mutex::new(client)),
             play_history,
             track_list_content: Default::default(),
             track_list_arc: Arc::from([]),
@@ -109,9 +111,7 @@ impl cosmic::Application for AppModel {
             favorite_tracks_filter_visible: false,
             favorite_tracks_filter_query: String::new(),
             view_state: ViewState::Loading,
-            login_request: None,
-            login_redirect_url: String::new(),
-            login_uri_rx: None,
+            qr_login_request: None,
             search_query: String::new(),
             search_results: None,
             user_playlists: Vec::new(),
@@ -178,7 +178,7 @@ impl cosmic::Application for AppModel {
             playback_queue: Vec::new(),
             playback_queue_index: 0,
             shuffle_enabled: false,
-            loop_status: crate::tidal::mpris::LoopStatus::None,
+            loop_status: crate::music::mpris::LoopStatus::None,
             playback_source: None,
             image_cache: ImageCache::new(image_cache_max_mb),
             cache_db: None,
@@ -200,8 +200,6 @@ impl cosmic::Application for AppModel {
             #[cfg(not(feature = "panel-applet"))]
             show_volume_popup: false,
             window_width: 0.0,
-            play_reporter: crate::tidal::play_reporter::PlayReporter::spawn(),
-            current_play: None,
             #[cfg(not(feature = "panel-applet"))]
             menu_key_binds: HashMap::new(),
         };
@@ -213,14 +211,13 @@ impl cosmic::Application for AppModel {
         app.loaded_images.set_request_tx(thumb_tx);
         app.thumbnail_request_rx = Some(Arc::new(Mutex::new(thumb_rx)));
 
-        // In standalone mode, set the Wayland/compositor window title so the
-        // SSD header bar displays "Maré Player".
+        // In standalone mode, set the Wayland/compositor window title.
         #[cfg(not(feature = "panel-applet"))]
         let title_task: Task<cosmic::Action<Self::Message>> = {
             let main_id = app.core().main_window_id();
             tracing::info!("Standalone title setup: main_window_id = {:?}", main_id);
             if let Some(id) = main_id {
-                app.set_window_title("Maré Player".to_string(), id)
+                app.set_window_title("Glacier Player".to_string(), id)
             } else {
                 tracing::warn!("main_window_id() returned None — cannot set window title during init");
                 Task::none()
@@ -229,16 +226,9 @@ impl cosmic::Application for AppModel {
         #[cfg(feature = "panel-applet")]
         let title_task: Task<cosmic::Action<Self::Message>> = Task::none();
 
-        // Start the sign-in callback service, so a browser that opens
-        // `tidal://login/auth?code=…` can hand the code to us directly.
-        let login_uri_task = Task::perform(
-            async { crate::tidal::login_uri::start_login_uri_service().await.map(|rx| Arc::new(Mutex::new(rx))) },
-            |result| cosmic::Action::App(Message::LoginUriServiceStarted(result)),
-        );
-
         // Start MPRIS service
         let mpris_task = Task::perform(
-            async { crate::tidal::mpris::start_mpris_service().await.map(|(handle, rx)| (handle, Arc::new(Mutex::new(rx)))) },
+            async { crate::music::mpris::start_mpris_service().await.map(|(handle, rx)| (handle, Arc::new(Mutex::new(rx)))) },
             |result| match result {
                 Ok((handle, rx)) => cosmic::Action::App(Message::MprisServiceStarted(Ok((handle, rx)))),
                 Err(e) => cosmic::Action::App(Message::MprisServiceStarted(Err(e))),
@@ -254,7 +244,7 @@ impl cosmic::Application for AppModel {
             async {
                 let path = dirs::cache_dir()
                     .unwrap_or_else(|| std::path::PathBuf::from("."))
-                    .join("cosmic-applet-mare")
+                    .join(crate::views::components::constants::CACHE_DIR_NAME)
                     .join("cache.db");
                 if let Some(parent) = path.parent() {
                     let _ = tokio::fs::create_dir_all(parent).await;
@@ -270,7 +260,7 @@ impl cosmic::Application for AppModel {
             |result| cosmic::Action::App(Message::CacheDbReady(result)),
         );
 
-        (app, Task::batch([mpris_task, login_uri_task, title_task, cache_db_task]))
+        (app, Task::batch([mpris_task, title_task, cache_db_task]))
     }
 
     /// Track the current window size so views can scale text limits, etc.
@@ -398,7 +388,7 @@ impl cosmic::Application for AppModel {
             /// Newtype wrapper around the MPRIS command receiver that
             /// implements [`Hash`] via the [`Arc`] pointer address, allowing
             /// it to be used as `run_with` subscription data.
-            struct MprisRx(Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<crate::tidal::mpris::MprisCommand>>>);
+            struct MprisRx(Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<crate::music::mpris::MprisCommand>>>);
 
             impl std::hash::Hash for MprisRx {
                 fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -412,32 +402,6 @@ impl cosmic::Application for AppModel {
                     let mut rx = rx.lock().await;
                     while let Some(cmd) = rx.recv().await {
                         if channel.send(Message::MprisCommand(cmd)).await.is_err() {
-                            break;
-                        }
-                    }
-                    futures_util::future::pending().await
-                })
-            }));
-        }
-
-        // Sign-in callbacks handed over by a browser through `tidal://`.
-        if let Some(rx) = &self.login_uri_rx {
-            /// Newtype wrapper around the callback-URI receiver, hashed by
-            /// [`Arc`] pointer address so it can key a `run_with` subscription.
-            struct LoginUriRx(Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>);
-
-            impl std::hash::Hash for LoginUriRx {
-                fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-                    Arc::as_ptr(&self.0).hash(state);
-                }
-            }
-
-            subs.push(Subscription::run_with(LoginUriRx(rx.clone()), |data: &LoginUriRx| {
-                let rx = data.0.clone();
-                cosmic::iced::stream::channel(4, async move |mut channel| {
-                    let mut rx = rx.lock().await;
-                    while let Some(uri) = rx.recv().await {
-                        if channel.send(Message::LoginCallbackUri(uri)).await.is_err() {
                             break;
                         }
                     }
@@ -504,7 +468,7 @@ impl cosmic::Application for AppModel {
     /// Handles messages emitted by the application and its widgets.
     ///
     /// This function dispatches messages to the appropriate handler modules:
-    /// - `handlers::auth` - Authentication (login, OAuth, logout)
+    /// - `handlers::auth` - Authentication (login, QR, logout)
     /// - `handlers::navigation` - View state transitions
     /// - `handlers::data` - Data loading, further split into:
     ///   - `data::library` - Playlists, albums, mixes, profiles, artist/album/track detail
@@ -660,19 +624,11 @@ impl cosmic::Application for AppModel {
 
             // Auth handlers
             Message::StartLogin => self.handle_start_login(),
-            Message::LoginUrlReceived(result) => self.handle_login_url_received(result),
-            Message::OpenLoginUrl => {
-                self.handle_open_login_url();
-                Task::none()
-            }
-            Message::LoginRedirectUrlChanged(url) => {
-                self.login_redirect_url = url;
-                Task::none()
-            }
-            Message::SubmitLoginRedirectUrl => self.handle_submit_login_redirect_url(),
-            Message::LoginUriServiceStarted(result) => self.handle_login_uri_service_started(result),
-            Message::LoginCallbackUri(uri) => self.handle_login_callback_uri(uri),
+            Message::CancelLogin => self.handle_cancel_login(),
+            Message::QrCodeReady(result) => self.handle_qr_code_ready(result),
             Message::LoginComplete(result) => self.handle_login_complete(result),
+            Message::QqQrPoll => self.handle_qq_qr_poll(),
+            Message::QqQrStatus(result) => self.handle_qq_qr_status(result),
             Message::SessionRestored(result) => self.handle_session_restored(result),
             Message::Logout => self.handle_logout(),
 
@@ -779,7 +735,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::CyclePlaybackMode => {
-                use crate::tidal::mpris::LoopStatus;
+                use crate::music::mpris::LoopStatus;
                 // Cycle: Off → Shuffle → Repeat All → Repeat Track → Off
                 if !self.shuffle_enabled && self.loop_status == LoopStatus::None {
                     // Off → Shuffle
@@ -840,6 +796,14 @@ impl cosmic::Application for AppModel {
                 self.handle_set_log_level(level);
                 Task::none()
             }
+            Message::QqMusicApiUrlChanged(url) => {
+                self.qqmusic_api_url_draft = url;
+                Task::none()
+            }
+            Message::ApplyQqMusicApiUrl => {
+                self.handle_set_qqmusic_api_url();
+                Task::none()
+            }
             Message::ClearHistory => {
                 self.handle_clear_history();
                 Task::none()
@@ -856,7 +820,6 @@ impl cosmic::Application for AppModel {
                 self.handle_cancel_share();
                 Task::none()
             }
-            Message::ShareLinkGenerated(result) => self.handle_share_link_generated(result),
 
             // Misc handlers - MPRIS
             Message::MprisServiceStarted(result) => self.handle_mpris_service_started(result),
@@ -876,12 +839,12 @@ impl cosmic::Application for AppModel {
                     }
                     Err(e) => {
                         // Surface the failure instead of silently losing data.
-                        // By far the most common cause is a stale second Maré
+                        // By far the most common cause is a stale second Glacier
                         // instance still holding turso's exclusive file lock
                         // (e.g. after removing + re-adding the applet, which
                         // doesn't reliably kill the old process).
                         self.error_message = Some(if e.to_lowercase().contains("lock") {
-                            "Cache locked by another Maré instance — history & images won't be \
+                            "Cache locked by another Glacier instance — history & images won't be \
                              saved. Close the duplicate applet and reopen."
                                 .to_string()
                         } else {

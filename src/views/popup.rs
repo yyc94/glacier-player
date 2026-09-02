@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Popup window view for Maré Player.
+//! Popup window view for Glacier Player.
 //!
 //! This module renders the main popup window including the content area
 //! (dispatching to the appropriate view based on ViewState) and the
@@ -26,9 +26,9 @@ use crate::views::components::scroll_to_volume_delta;
 use crate::fl;
 use crate::helpers::format_seconds;
 use crate::messages::Message;
+use crate::music::player::PlaybackState;
 use crate::state::{AppModel, ViewState};
-use crate::tidal::player::PlaybackState;
-use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE, RADIO_SVG, favorite_icon_handle};
+use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE};
 #[cfg(feature = "panel-applet")]
 use crate::views::components::{POPIN_SVG, POPOUT_SVG};
 
@@ -135,7 +135,7 @@ impl AppModel {
         match &self.view_state {
             ViewState::Loading => self.view_loading(),
             ViewState::Login => self.view_login(),
-            ViewState::AwaitingOAuth => self.view_awaiting_oauth(),
+            ViewState::AwaitingQr => self.view_awaiting_qr(),
             ViewState::Main => self.view_main(),
             ViewState::Search => self.view_search(),
             ViewState::Mixes => self.view_mixes(),
@@ -363,22 +363,9 @@ impl AppModel {
         }
     }
 
-    /// The now-playing-bar "go to track radio" button. Hidden for videos,
-    /// which have no TIDAL track radio (the /tracks/{id}/mix endpoint 404s).
+    /// QQMusicApi does not currently expose track radio.
     fn now_playing_radio_button(&self) -> Option<Element<'_, Message>> {
-        let track = self.playback_queue.get(self.playback_queue_index)?;
-        if track.is_video {
-            return None;
-        }
-        let mut ri = icon::from_svg_bytes(RADIO_SVG);
-        ri.symbolic = true;
-        Some(
-            button::icon(ri)
-                .tooltip(fl!("tooltip-go-to-track-radio"))
-                .padding(4)
-                .on_press(Message::ShowTrackRadio(track.clone()))
-                .into(),
-        )
+        None
     }
 
     /// The now-playing-bar lyrics button, shown only once we've confirmed the
@@ -395,7 +382,7 @@ impl AppModel {
     }
 
     /// Render the now-playing bar shown at the bottom of the popup.
-    fn view_now_playing_bar(&self, np: &crate::tidal::player::NowPlaying) -> Element<'_, Message> {
+    fn view_now_playing_bar(&self, np: &crate::music::player::NowPlaying) -> Element<'_, Message> {
         let play_pause_icon = if self.playback_state == PlaybackState::Playing {
             "media-playback-pause-symbolic"
         } else {
@@ -404,10 +391,7 @@ impl AppModel {
 
         let progress = if np.duration > 0.0 { (self.playback_position / np.duration * 100.0) as u8 } else { 0 };
 
-        // Check if current track is favorited
-        let is_favorite = self.favorite_track_ids.contains(&np.track_id);
-
-        // Get the current track from the queue for the favorite toggle
+        // Get the current track from the queue for metadata and sharing.
         let current_track = self.playback_queue.get(self.playback_queue_index).cloned();
         let track_for_share_prompt = current_track.clone();
 
@@ -543,20 +527,6 @@ impl AppModel {
 
         // Buttons row below - centered
         let buttons_row = widget::Row::new()
-            .push_maybe({
-                // Videos can't be favorited (TIDAL's track-favorites endpoint
-                // 404s on a video id), so omit the heart for them.
-                let is_video = current_track.as_ref().is_some_and(|t| t.is_video);
-                (!is_video).then(|| {
-                    let tip = if is_favorite { fl!("tooltip-remove-from-favorites") } else { fl!("tooltip-add-to-favorites") };
-                    let btn = button::icon(favorite_icon_handle(is_favorite)).tooltip(tip).padding(4);
-                    let btn: Element<'_, Message> = match current_track.clone() {
-                        Some(track) => btn.on_press(Message::ToggleFavorite(track)).into(),
-                        None => btn.into(),
-                    };
-                    btn
-                })
-            })
             .push(
                 button::icon(widget::icon::from_name("media-skip-backward-symbolic"))
                     .tooltip(fl!("tooltip-previous-track"))
@@ -584,13 +554,13 @@ impl AppModel {
                     ("media-playlist-shuffle-symbolic", fl!("tooltip-mode-shuffle"))
                 } else {
                     match self.loop_status {
-                        crate::tidal::mpris::LoopStatus::None => {
+                        crate::music::mpris::LoopStatus::None => {
                             ("media-playlist-consecutive-symbolic", fl!("tooltip-mode-normal"))
                         }
-                        crate::tidal::mpris::LoopStatus::Playlist => {
+                        crate::music::mpris::LoopStatus::Playlist => {
                             ("media-playlist-repeat-symbolic", fl!("tooltip-mode-repeat-all"))
                         }
-                        crate::tidal::mpris::LoopStatus::Track => {
+                        crate::music::mpris::LoopStatus::Track => {
                             ("media-playlist-repeat-song-symbolic", fl!("tooltip-mode-repeat-track"))
                         }
                     }

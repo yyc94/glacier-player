@@ -17,7 +17,7 @@
 
 use std::sync::Arc;
 
-use cosmic_applet_mare::tidal::models::Track;
+use cosmic_applet_mare::music::models::Track;
 use cosmic_applet_mare::views::components::{
     MAX_POPUP_HEIGHT, NOW_PLAYING_ART_SIZE, PANEL_ART_SIZE, THUMBNAIL_SIZE, TrackRowOptions,
 };
@@ -112,9 +112,9 @@ mod track_row_options_default {
     }
 
     #[test]
-    fn default_show_radio_button_is_true() {
+    fn default_show_radio_button_is_false_without_api_route() {
         let opts = TrackRowOptions::default();
-        assert!(opts.show_radio_button);
+        assert!(!opts.show_radio_button);
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod track_row_options_fields {
 
     #[test]
     fn can_set_source() {
-        use cosmic_applet_mare::tidal::models::{PlaybackSource, PlaybackSourceKind};
+        use cosmic_applet_mare::music::models::{PlaybackSource, PlaybackSourceKind};
         let tracks: Vec<Track> = vec![];
         let opts = TrackRowOptions {
             source: Some(PlaybackSource::playlist("uuid-123", "My Playlist")),

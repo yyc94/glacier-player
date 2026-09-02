@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Persisted configuration schema for Maré Player.
+//! Persisted configuration schema for Glacier Player.
 //!
 //! Settings are stored via COSMIC's config system and survive restarts.
 //! The [`Config`] struct is the single source of truth for user preferences
@@ -9,12 +9,12 @@
 use cosmic::cosmic_config::{self, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry};
 use serde::{Deserialize, Serialize};
 
-/// Audio quality settings for TIDAL playback
+/// Audio quality settings for music playback.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AudioQuality {
-    /// Low quality (96 kbps AAC)
+    /// Low quality (128 kbps MP3)
     Low,
-    /// High quality (320 kbps AAC)
+    /// High quality (320 kbps MP3)
     High,
     /// Lossless quality (FLAC 16-bit/44.1kHz)
     Lossless,
@@ -24,52 +24,28 @@ pub enum AudioQuality {
 }
 
 impl AudioQuality {
-    /// Label for the Settings dropdown: TIDAL's tier name plus what it actually
-    /// delivers.
+    /// Label for the Settings dropdown and now-playing quality badge.
     ///
     /// Deliberately the same vocabulary the now-playing badge uses for the
-    /// *served* stream, so "what I asked for" and "what I'm getting" can be
-    /// compared directly, and phrased like TIDAL's own client ("16-bit,
-    /// 44.1 kHz" / "Up to 24-bit, 192 kHz").
+    /// *served* stream, so the requested and delivered quality stay comparable.
     ///
-    /// Not localized, for the same reason the log-level dropdown isn't: the
-    /// content is TIDAL's tier names and unit-bearing specs. The badge renders
-    /// the tier straight from the API response, so translating this side alone
-    /// would put the two halves of that comparison in different languages. The
-    /// prose *underneath* the dropdown (`quality-description-*`) is localized —
-    /// that's where anything explanatory belongs.
+    /// The explanatory text underneath the dropdown remains localized.
     pub fn display_name(&self) -> &'static str {
         match self {
-            AudioQuality::Low => "Low — 96 kbps AAC",
-            AudioQuality::High => "High — 320 kbps AAC",
+            AudioQuality::Low => "Low — 128 kbps MP3",
+            AudioQuality::High => "High — 320 kbps MP3",
             AudioQuality::Lossless => "Lossless — 16-bit, 44.1 kHz",
             AudioQuality::HiRes => "Hi-Res Lossless — up to 24-bit, 192 kHz",
         }
     }
 
-    /// Convert to tidlers AudioQuality
-    pub fn to_tidlers(self) -> tidlers::client::models::playback::AudioQuality {
+    /// Stable integer used by the QQMusicApi Web file-type mapping.
+    pub fn qqmusic_file_type(self) -> u8 {
         match self {
-            AudioQuality::Low => tidlers::client::models::playback::AudioQuality::Low,
-            AudioQuality::High => tidlers::client::models::playback::AudioQuality::High,
-            AudioQuality::Lossless => tidlers::client::models::playback::AudioQuality::Lossless,
-            AudioQuality::HiRes => tidlers::client::models::playback::AudioQuality::HiRes,
-        }
-    }
-
-    /// The string TIDAL's `audioquality` request parameter expects.
-    ///
-    /// Deliberately not derived from [`Self::to_tidlers`]: tidlers renders its
-    /// `HiRes` as `HI_RES`, the MQA-era tier TIDAL retired, and asking for a
-    /// tier that no longer exists earns a silent downgrade to `LOSSLESS`. The
-    /// FLAC hi-res tier — "Max" in TIDAL's own UI, up to 24-bit / 192 kHz — is
-    /// `HI_RES_LOSSLESS`.
-    pub fn tidal_param(self) -> &'static str {
-        match self {
-            AudioQuality::Low => "LOW",
-            AudioQuality::High => "HIGH",
-            AudioQuality::Lossless => "LOSSLESS",
-            AudioQuality::HiRes => "HI_RES_LOSSLESS",
+            AudioQuality::Low => 13,
+            AudioQuality::High => 12,
+            AudioQuality::Lossless => 7,
+            AudioQuality::HiRes => 1,
         }
     }
 }
@@ -128,10 +104,12 @@ impl AsRef<str> for LogLevel {
     }
 }
 
-/// Configuration for Maré Player
+/// Configuration for Glacier Player.
 #[derive(Debug, Clone, CosmicConfigEntry, PartialEq)]
-#[version = 2]
+#[version = 3]
 pub struct Config {
+    /// Base URL of the QQMusicApi Web service.
+    pub qqmusic_api_url: String,
     /// Preferred audio quality for playback
     pub audio_quality: AudioQuality,
     /// Maximum image cache size in megabytes
@@ -142,8 +120,8 @@ pub struct Config {
     pub volume_level: f32,
     /// Fixed loudness pre-amp applied to music **videos**, in decibels.
     ///
-    /// TIDAL authors replay-gain for audio tracks but **not** for videos, so
-    /// videos get a fixed pre-amp instead. TIDAL album gains cluster around
+    /// The service may provide replay-gain for audio tracks but **not** for
+    /// videos, so videos get a fixed pre-amp instead.
     /// -7..-11 dB, so the -8 dB default brings videos roughly in line with
     /// normalized tracks.
     pub video_preamp_db: f32,
@@ -152,6 +130,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            qqmusic_api_url: "http://127.0.0.1:8080".to_string(),
             audio_quality: AudioQuality::HiRes,
             image_cache_max_mb: 200,
             log_level: LogLevel::Info,

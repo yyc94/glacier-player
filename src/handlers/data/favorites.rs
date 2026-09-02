@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Favorite and follow toggle handlers for Maré Player.
+//! Favorite and follow toggle handlers for Glacier Player.
 //!
 //! Handles toggling favorite tracks, favorite albums, and followed artists,
 //! including the optimistic UI update on the response.
@@ -8,8 +8,8 @@
 use cosmic::prelude::*;
 
 use crate::messages::Message;
+use crate::music::models::{Album, Artist, Track};
 use crate::state::AppModel;
-use crate::tidal::models::{Album, Artist, Track};
 
 // =============================================================================
 // Track Favorite Toggle
@@ -20,7 +20,7 @@ impl AppModel {
     pub fn handle_toggle_favorite(&self, track: Track) -> Task<cosmic::Action<Message>> {
         let track_id = track.id.clone();
         let is_favorite = self.favorite_track_ids.contains(&track_id);
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
 
         Task::perform(
             async move {
@@ -68,7 +68,7 @@ impl AppModel {
     pub fn handle_toggle_favorite_album(&self, album: Album) -> Task<cosmic::Action<Message>> {
         let album_id = album.id.clone();
         let is_favorite = self.favorite_album_ids.contains(&album_id);
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
 
         Task::perform(
             async move {
@@ -116,7 +116,7 @@ impl AppModel {
     pub fn handle_toggle_follow_artist(&self, artist: Artist) -> Task<cosmic::Action<Message>> {
         let artist_id = artist.id.clone();
         let is_followed = self.followed_artist_ids.contains(&artist_id);
-        let client = self.tidal_client.clone();
+        let client = self.music_client.clone();
 
         Task::perform(
             async move {

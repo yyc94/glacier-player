@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Credits view for Maré Player.
+//! Credits view for Glacier Player.
 //!
 //! Renders the "who made this record" panel for a single track, mirroring the
-//! credits tab in the TIDAL desktop client: a stack of labelled fields, first
+//! credits tab in the QQ Music desktop client: a stack of labelled fields, first
 //! the catalog basics (title, artists, album, release date, label) and then
 //! one block per credit role (Producer, Composer, Mixing Engineer, …).
 //!
 //! Everything comes from [`TrackCredits`], fetched by
-//! [`get_track_credits`](crate::tidal::client::TidalAppClient::get_track_credits).
-//! Contributors carry real TIDAL artist ids, so each credited person is a
+//! [`get_track_credits`](crate::qqmusic::QqMusicAppClient::get_track_credits).
+//! Contributors carry real QQ Music artist ids, so each credited person is a
 //! link straight to their artist page — the whole point of showing credits is
 //! being able to follow the session players around the catalog.
 //!
 //! Three render states, same contract as the lyrics view:
 //!
 //! 1. **Loading** — nothing stored yet; the fetch is in flight.
-//! 2. **Empty** — TIDAL has no credits for this track (a `200` with `[]`,
+//! 2. **Empty** — QQ Music has no credits for this track (a `200` with `[]`,
 //!    which is common for older or independent releases).
 //! 3. **Loaded** — the field stack.
 
@@ -28,8 +28,8 @@ use cosmic::widget::{self, button, container, text};
 
 use crate::fl;
 use crate::messages::Message;
+use crate::music::models::{CreditContributor, TrackCredits};
 use crate::state::AppModel;
-use crate::tidal::models::{CreditContributor, TrackCredits};
 use crate::views::components::{back_button, fading_header_title, fading_text, fading_text_column, scrollable_list};
 
 /// Font size for a field's caption ("PRODUCER", "LABEL", …).
@@ -103,7 +103,7 @@ impl AppModel {
             column = column.push(field_text(fl!("credits-field-label"), copyright));
         }
 
-        // ── Credit roles (TIDAL's own ordering) ───────────────────────────
+        // ── Credit roles (QQ Music's own ordering) ───────────────────────────
         for role in &credits.roles {
             column = column.push(field_people(role.role.clone(), &role.contributors));
         }

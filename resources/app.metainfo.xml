@@ -1,54 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>io.github.cosmic-applet-mare</id>
-  <name>Maré Player</name>
-  <summary>Maré Player — a COSMIC desktop applet for TIDAL music streaming</summary>
+  <name>Glacier Player</name>
+  <summary>Glacier Player — a COSMIC desktop applet for QQ Music</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only</project_license>
   <description>
     <p>
-      Stream TIDAL from your COSMIC panel. Hi-Res FLAC playback, library
-      browsing, search, and full media-key control — all without leaving
-      your desktop.
+      Stream QQ Music from your COSMIC panel. Choose audio quality, browse
+      your library and artists, search tracks, and use desktop media keys.
     </p>
     <ul>
-      <li>Hi-Res audio — FLAC up to 24-bit/192 kHz</li>
-      <li>Music video playback in an auto-hiding theater HUD</li>
-      <li>Gapless playback with volume normalization (replay-gain)</li>
+      <li>Selectable MP3, FLAC, and Hi-Res audio quality</li>
+      <li>Gapless audio playback</li>
       <li>Real-time spectrum visualizer</li>
-      <li>Library — playlists, albums, artists, favorites, mixes &amp; track radio</li>
-      <li>Explore TIDAL's curated pages and an activity feed of new releases</li>
-      <li>Search, time-synced lyrics, and local play history</li>
+      <li>Library — playlists, albums, favorites, and local history</li>
+      <li>Track search, artist pages, and time-synced lyrics</li>
       <li>MPRIS integration — media keys, playerctl, KDE Connect</li>
-      <li>Secure OAuth login with system keyring storage</li>
+      <li>Secure QR login with system keyring storage</li>
       <li>Runs as a COSMIC panel applet or a standalone window</li>
     </ul>
   </description>
   <screenshots>
     <screenshot type="default">
       <caption>Panel applet with library collection and now-playing bar</caption>
-      <image type="source">https://raw.githubusercontent.com/glima/mare-player/HEAD/resources/screenshot_applet.png</image>
+      <image type="source">https://raw.githubusercontent.com/yyc94/glacier-player/HEAD/resources/screenshot_applet.png</image>
     </screenshot>
     <screenshot>
       <caption>Standalone window showing album detail view</caption>
-      <image type="source">https://raw.githubusercontent.com/glima/mare-player/HEAD/resources/screenshot_standalone.png</image>
+      <image type="source">https://raw.githubusercontent.com/yyc94/glacier-player/HEAD/resources/screenshot_standalone.png</image>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">io.github.cosmic-applet-mare.desktop</launchable>
   <provides>
     <binary>cosmic-applet-mare</binary>
   </provides>
-  <url type="homepage">https://github.com/glima/mare-player</url>
-  <url type="bugtracker">https://github.com/glima/mare-player/issues</url>
-  <developer_name>Maré Player Developers</developer_name>
+  <url type="homepage">https://github.com/yyc94/glacier-player</url>
+  <url type="bugtracker">https://github.com/yyc94/glacier-player/issues</url>
+  <developer_name>Glacier Player Developers</developer_name>
   <categories>
     <category>Audio</category>
     <category>Music</category>
     <category>Player</category>
   </categories>
   <keywords>
-    <keyword>tidal</keyword>
-    <keyword>maré</keyword>
+    <keyword>qqmusic</keyword>
+    <keyword>glacier</keyword>
     <keyword>music</keyword>
     <keyword>streaming</keyword>
     <keyword>cosmic</keyword>

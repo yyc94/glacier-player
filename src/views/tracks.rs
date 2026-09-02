@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Favorite tracks view for Maré Player.
+//! Favorite tracks view for Glacier Player.
 //!
 //! This module renders the favorite tracks list view using iced's virtual
 //! [`List`](cosmic::iced::widget::list::List) widget, which only materialises the rows currently visible in
@@ -51,7 +51,7 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-favorites"))),
+                            Some(crate::music::models::PlaybackSource::ad_hoc(fl!("context-favorites"))),
                         ))
                     })
                     .padding(4),
@@ -89,7 +89,7 @@ impl AppModel {
             let loaded_images = &self.loaded_images;
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-favorites"))),
+                source: Some(crate::music::models::PlaybackSource::ad_hoc(fl!("context-favorites"))),
                 fallback_icon: "emblem-favorite-symbolic",
                 ..Default::default()
             };

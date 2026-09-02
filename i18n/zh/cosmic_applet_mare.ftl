@@ -1,17 +1,17 @@
 # 认证
-sign-in = 使用 TIDAL 登录
+sign-in = 使用 QQ Music 登录
 sign-in-prompt = 登录以访问您的音乐
-sign-in-title = 登录 TIDAL
+sign-in-title = 登录 QQ Music
 sign-out = 退出登录
 sign-in-button = 登录
 open-browser = 打开浏览器
 cancel = 取消
 verifying-auth = 正在验证身份...
 verifying-auth-wait = 请稍候，我们正在确认您的登录。
-login-step-browser = 1. 打开 TIDAL 登录页面并登录：
+login-step-browser = 1. 打开 QQ Music 登录页面并登录：
 login-returns-here = 登录后会直接回到这里 —— 无需复制任何内容。
 login-step-paste = 2. 随后浏览器会跳转到一个无法加载的页面。复制该页面的地址并粘贴到这里：
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = 完成登录
 login-retry = 该登录链接已被使用或已过期 —— 请重新打开浏览器并复制新的地址。
 preparing-login = 正在准备登录...
@@ -99,7 +99,7 @@ track-count = {$count} 首曲目
 artist-count = {$count} 位艺术家
 
 # 搜索
-search-placeholder = 搜索曲目、专辑、艺术家...
+search-placeholder = 搜索曲目...
 
 # 调试
 debug-unoptimized = （未优化）
@@ -151,7 +151,7 @@ refresh = 刷新
 
 # 分享
 share = 分享
-share-description = 生成 song.link 链接并复制到剪贴板
+share-description = 生成 QQ Music 链接并复制到剪贴板
 share-track = 分享曲目：{$title}
 share-album = 分享专辑：{$title}
 

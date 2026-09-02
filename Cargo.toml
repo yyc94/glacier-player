@@ -3,11 +3,11 @@ name = "cosmic-applet-mare"
 version = "0.3.2"
 edition = "2024"
 license = "GPL-3.0-only"
-authors = ["Maré Player authors"]
-description = "Maré Player — a COSMIC desktop applet for TIDAL music streaming"
-repository = "https://github.com/glima/mare-player"
+authors = ["Glacier Player authors"]
+description = "Glacier Player — a COSMIC desktop applet for QQ Music"
+repository = "https://github.com/yyc94/glacier-player"
 
-# `mare-video-window` is an out-of-process companion that renders a popped-out
+# The video-window member is an out-of-process companion that renders a popped-out
 # music video in its own real toplevel window (a panel applet can't spawn one).
 # It links only GStreamer, talks to the applet over a stdin/stdout pipe, and is
 # a workspace member so it shares the lockfile. The cargo-fuzz crate keeps its
@@ -47,9 +47,6 @@ i18n-embed-fl = "0.10"
 rust-embed = "8.7.2"
 tokio = { version = "1.48.0", features = ["sync", "time", "fs", "process", "rt", "macros", "io-util"] }
 
-# TIDAL API client
-tidlers = { git = "https://github.com/tomkoid/tidlers.git" }
-
 # Secure credential storage
 keyring = { version = "3", features = ["sync-secret-service"] }
 
@@ -67,10 +64,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
 
-# URL handling for OAuth
-open = "5"
-
-# HTTP client (for additional API requests not covered by tidlers)
+# HTTP client for the QQMusicApi Web service
 reqwest = { version = "0.13.1", default-features = false, features = ["json", "rustls"] }
 
 # Random number generation for shuffle
@@ -96,20 +90,16 @@ gstreamer-video = "0.25"
 # D-Bus for MPRIS media player interface
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 
-# URL encoding for song.link API
-urlencoding = "2.1"
-
-# Image processing for circular album art (only need JPEG/PNG for TIDAL artwork)
+# Image processing for circular album art
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 base64 = "0.23.0"
 
 # Parking lot for better mutexes
 parking_lot = "0.12.5"
 uuid = { version = "1.23.2", features = ["v4"] }
-serde_urlencoded = "0.7.1"
 
 # On-demand profiling: automatically available in debug builds (cfg(debug_assertions)).
-# Send SIGUSR1 to the process → samples for 10 s → writes /tmp/mare-flamegraph.svg.
+# Send SIGUSR1 to the process → samples for 10 s → writes /tmp/glacier-flamegraph.svg.
 # In release builds the code is gated out and LTO strips the deps.
 [target.'cfg(target_os = "linux")'.dependencies]
 pprof = { version = "0.15", default-features = false, features = ["flamegraph"] }
@@ -140,13 +130,13 @@ features = [
 
 [package.metadata.deb]
 name = "cosmic-applet-mare"
-copyright = "© Maré Player authors"
+copyright = "© Glacier Player authors"
 license-file = "LICENSE"
 section = "sound"
 depends = "libc6, libdbus-1-3, libxkbcommon0, libsecret-1-0, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav"
 assets = [
     ["target/release/cosmic-applet-mare", "usr/bin/", "755"],
-    ["target/release/mare-video-window", "usr/bin/", "755"],
+    ["target/release/glacier-video-window", "usr/bin/", "755"],
     ["resources/app.desktop", "usr/share/applications/io.github.cosmic-applet-mare.desktop", "644"],
     ["resources/app.metainfo.xml", "usr/share/metainfo/io.github.cosmic-applet-mare.metainfo.xml", "644"],
     ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/io.github.cosmic-applet-mare.svg", "644"],
@@ -167,7 +157,7 @@ assets = [
 name = "cosmic-applet-mare"
 assets = [
     { source = "target/release/cosmic-applet-mare", dest = "/usr/bin/", mode = "755" },
-    { source = "target/release/mare-video-window", dest = "/usr/bin/", mode = "755" },
+    { source = "target/release/glacier-video-window", dest = "/usr/bin/", mode = "755" },
     { source = "resources/app.desktop", dest = "/usr/share/applications/io.github.cosmic-applet-mare.desktop", mode = "644" },
     { source = "resources/app.metainfo.xml", dest = "/usr/share/metainfo/io.github.cosmic-applet-mare.metainfo.xml", mode = "644" },
     { source = "resources/icon.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.cosmic-applet-mare.svg", mode = "644" },
@@ -183,7 +173,7 @@ gstreamer1 = "*"
 gstreamer1-plugins-base = "*"
 gstreamer1-plugins-good = "*"
 # Note: gstreamer1-plugins-bad-free + gstreamer1-libav (the latter from RPM
-# Fusion) are needed for the full TIDAL codec set (AAC/MP3 via libav).
+# Fusion) are needed for the full QQ Music codec set (AAC/MP3 via libav).
 
 [package.metadata.generate-rpm.variants.standalone]
 name = "mare-player"

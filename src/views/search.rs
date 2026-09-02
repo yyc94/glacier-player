@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Search view for Maré Player.
+//! Search view for Glacier Player.
 //!
-//! This module contains the search interface with results for
-//! tracks, albums, and playlists.
+//! This module contains the QQ Music track search interface.
 
 use std::sync::Arc;
 
@@ -56,7 +55,7 @@ impl AppModel {
                             index,
                             &TrackRowOptions {
                                 tracks: Arc::clone(&search_tracks),
-                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-search"))),
+                                source: Some(crate::music::models::PlaybackSource::ad_hoc(fl!("context-search"))),
                                 ..Default::default()
                             },
                         ));
@@ -74,7 +73,7 @@ impl AppModel {
                             index,
                             &TrackRowOptions {
                                 tracks: Arc::clone(&search_videos),
-                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-search"))),
+                                source: Some(crate::music::models::PlaybackSource::ad_hoc(fl!("context-search"))),
                                 ..Default::default()
                             },
                         ));

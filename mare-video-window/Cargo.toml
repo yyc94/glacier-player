@@ -1,18 +1,18 @@
 [package]
-name = "mare-video-window"
+name = "glacier-video-window"
 version = "0.3.2"
 edition = "2024"
 license = "GPL-3.0-only"
-authors = ["Maré Player authors"]
-description = "Maré Player — out-of-process video window companion"
-repository = "https://github.com/glima/mare-player"
+authors = ["Glacier Player authors"]
+description = "Glacier Player — out-of-process video window companion"
+repository = "https://github.com/yyc94/glacier-player"
 
 [[bin]]
-name = "mare-video-window"
+name = "glacier-video-window"
 path = "src/main.rs"
 
 [dependencies]
-# Only GStreamer (which re-exports glib). No TIDAL, no auth, no GUI toolkit:
+# Only GStreamer (which re-exports glib). No network client, auth, or GUI toolkit:
 # the parent applet hands down a resolved video URL and this just plays it in
 # a real toplevel window (the video sink owns the window), driven over a pipe.
 gstreamer = "0.25"

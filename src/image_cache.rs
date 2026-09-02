@@ -48,7 +48,7 @@ pub struct ImageCache {
 
 /// Maximum pixel dimension for decoded image handles.
 ///
-/// Source artwork is 320×320 from the TIDAL CDN.  The largest on-screen
+/// Source artwork is 320×320 from the QQ Music CDN.  The largest on-screen
 /// usage is 96 px (album/artist detail); on a 2× HiDPI display that
 /// requires 192 real pixels.  160 px is a good middle ground — sharp
 /// enough for detail views while cutting per-image RGBA memory by 4×
@@ -186,7 +186,7 @@ impl ImageCache {
 
     /// Whether a URL may be fetched.
     ///
-    /// Artwork URLs arrive from TIDAL's API responses, so this is the last
+    /// Artwork URLs arrive from QQ Music's API responses, so this is the last
     /// point where a hostile one can be turned away: `https://` only, in
     /// anything that ships. The loopback exemption exists for the tests
     /// below, which serve PNGs from a local server, and is compiled out of
@@ -225,7 +225,7 @@ impl ImageCache {
 /// separates the quadrants, filled with a dark background (`#1a1a1a`).
 ///
 /// The result is a circular PNG at `output_size × output_size` pixels, suitable
-/// for use as a playlist thumbnail that mirrors the TIDAL 2×2 album art style.
+/// for use as a playlist thumbnail that mirrors the QQ Music 2×2 album art style.
 pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<RgbaPixels, String> {
     if images.is_empty() {
         return Err("No images provided for grid thumbnail".to_string());
@@ -546,10 +546,10 @@ mod tests {
 
     #[test]
     fn is_fetchable_accepts_https_only_outside_tests() {
-        assert!(ImageCache::is_fetchable("https://resources.tidal.com/images/x/320x320.jpg"));
+        assert!(ImageCache::is_fetchable("https://y.qq.com/n/ryqq/images/x/320x320.jpg"));
         // Artwork URLs come from API responses; these are the shapes a
         // hostile one would take.
-        assert!(!ImageCache::is_fetchable("http://resources.tidal.com/images/x.jpg"));
+        assert!(!ImageCache::is_fetchable("http://resources.provider.com/images/x.jpg"));
         assert!(!ImageCache::is_fetchable("file:///etc/passwd"));
         assert!(!ImageCache::is_fetchable("ftp://example.test/x.png"));
         assert!(!ImageCache::is_fetchable("//example.test/x.png"));

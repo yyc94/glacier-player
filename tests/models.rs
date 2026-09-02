@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Integration tests for the TIDAL data models module.
+//! Integration tests for the music data models module.
 //!
 //! Tests Track, Album, Artist, Playlist, Mix, and SearchResults types
 //! including display formatting, defaults, edge cases, and serde roundtrips.
@@ -15,7 +15,7 @@
     clippy::wildcard_imports
 )]
 
-use cosmic_applet_mare::tidal::models::{Album, Artist, Mix, Playlist, SearchResults, Track};
+use cosmic_applet_mare::music::models::{Album, Artist, Mix, Playlist, SearchResults, Track};
 
 // ===========================================================================
 // Track
@@ -231,7 +231,7 @@ mod album {
             num_tracks: 8,
             duration: 2400,
             release_date: Some("2023-06-01".to_string()),
-            cover_url: Some("https://tidal.com/cover.jpg".to_string()),
+            cover_url: Some("https://y.qq.com/cover.jpg".to_string()),
             explicit: false,
             audio_quality: Some("HI_RES".to_string()),
             review: None,
@@ -281,7 +281,7 @@ mod artist {
             bio: Some("A really great musician.".to_string()),
             popularity: Some(95),
             roles: vec!["Artist".to_string(), "Producer".to_string()],
-            url: Some("https://tidal.com/artist/123".to_string()),
+            url: Some("https://y.qq.com/artist/123".to_string()),
         };
         let b = a.clone();
         assert_eq!(a.id, b.id);
@@ -302,7 +302,7 @@ mod artist {
             bio: Some("Bio text".to_string()),
             popularity: Some(75),
             roles: vec!["DJ".to_string(), "Songwriter".to_string()],
-            url: Some("https://tidal.com/artist/42".to_string()),
+            url: Some("https://y.qq.com/artist/42".to_string()),
         };
         let json = serde_json::to_string(&a).unwrap();
         let a2: Artist = serde_json::from_str(&json).unwrap();
@@ -836,13 +836,5 @@ mod scenarios {
         assert!(m.image_url.is_none());
         let json = serde_json::to_string(&m).unwrap();
         assert!(json.contains("null") || !json.contains("image_url"));
-    }
-
-    /// Verify track cover_url construction pattern (like TIDAL uses).
-    #[test]
-    fn cover_url_pattern() {
-        let cover_id = "abcd-efgh-ijkl";
-        let url = format!("https://resources.tidal.com/images/{}/320x320.jpg", cover_id.replace('-', "/"));
-        assert_eq!(url, "https://resources.tidal.com/images/abcd/efgh/ijkl/320x320.jpg");
     }
 }

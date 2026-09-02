@@ -1,32 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Utility helper functions for Maré Player.
+//! Utility helper functions for Glacier Player.
 //!
 //! This module contains shared utility functions used across the application,
 //! including clipboard operations, URL handling, and text manipulation.
-
-/// Generate a song.link URL for sharing
-///
-/// Takes a TIDAL URL and returns a universal song.link URL that works
-/// across multiple streaming platforms.
-pub async fn generate_songlink(tidal_url: &str) -> Result<String, String> {
-    let client = reqwest::Client::new();
-
-    // Build the URL with query parameters
-    let url = format!("https://api.song.link/v1-alpha.1/links?url={}&userCountry=US", urlencoding::encode(tidal_url));
-
-    let response = client.get(&url).send().await.map_err(|e| format!("Request failed: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("API returned status: {}", response.status()));
-    }
-
-    let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
-
-    let json: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-
-    json.get("pageUrl").and_then(|v| v.as_str()).map(|s| s.to_string()).ok_or_else(|| "No pageUrl in response".to_string())
-}
 
 /// Copy text to clipboard using system tools
 ///

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Maré Player — out-of-process music-video window.
+//! Glacier Player — out-of-process music-video window.
 //!
 //! A COSMIC **panel applet** cannot spawn a normal toplevel window (the panel
 //! runtime parents every surface it creates back into the panel). So when the
@@ -9,7 +9,7 @@
 //! toplevel window — which is simply the window the GStreamer video sink
 //! creates.
 //!
-//! It is deliberately dumb: no TIDAL client, no auth, no GUI toolkit. The
+//! It is deliberately dumb: no network client, no auth, no GUI toolkit. The
 //! parent resolves the video's HLS URL and hands it down; this just plays it,
 //! continuing from the position and volume the inline player had. The two talk
 //! over the child's stdio:
@@ -101,13 +101,13 @@ fn resume_at(playbin: &gst::Element, secs: f64) {
             let dur = pb.query_duration::<gst::ClockTime>();
             if dur.is_some_and(|d| d.nseconds() > 0) {
                 eprintln!(
-                    "mare-video-window: seekable after {waited_ms}ms (duration={:?}s), seeking to {secs:.1}s",
+                    "glacier-video-window: seekable after {waited_ms}ms (duration={:?}s), seeking to {secs:.1}s",
                     dur.map(|d| d.seconds())
                 );
                 break;
             }
             if std::time::Instant::now() >= deadline {
-                eprintln!("mare-video-window: not seekable after {waited_ms}ms; seeking anyway to {secs:.1}s");
+                eprintln!("glacier-video-window: not seekable after {waited_ms}ms; seeking anyway to {secs:.1}s");
                 break;
             }
             thread::sleep(Duration::from_millis(150));
@@ -118,7 +118,7 @@ fn resume_at(playbin: &gst::Element, secs: f64) {
         // Let the flush-seek's preroll settle before we start rolling.
         let _ = pb.state(Some(gst::ClockTime::from_seconds(5)));
         let _ = pb.set_state(gst::State::Playing);
-        eprintln!("mare-video-window: resumed playing at {secs:.1}s (seek_ok={})", ok.is_ok());
+        eprintln!("glacier-video-window: resumed playing at {secs:.1}s (seek_ok={})", ok.is_ok());
     });
 }
 
@@ -131,19 +131,19 @@ fn main() {
     let preamp_db: f64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_PREAMP_DB);
 
     if url.is_empty() {
-        eprintln!("mare-video-window: no URL given");
+        eprintln!("glacier-video-window: no URL given");
         std::process::exit(2);
     }
 
     // GStreamer's windowing video sinks title their window after the GLib
     // program name (which defaults to this binary's basename). Set a friendly
-    // name so the popped-out video window reads "Maré Player" instead of
-    // "mare-video-window".
-    glib::set_prgname(Some("Maré Player"));
-    glib::set_application_name("Maré Player");
+    // name so the popped-out video window reads "Glacier Player" instead of
+    // "glacier-video-window".
+    glib::set_prgname(Some("Glacier Player"));
+    glib::set_application_name("Glacier Player");
 
     if let Err(e) = gst::init() {
-        eprintln!("mare-video-window: gstreamer init failed: {e}");
+        eprintln!("glacier-video-window: gstreamer init failed: {e}");
         std::process::exit(1);
     }
 
@@ -156,7 +156,7 @@ fn main() {
         Err(_) => match gst::ElementFactory::make("playbin").build() {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("mare-video-window: failed to create playbin: {e}");
+                eprintln!("glacier-video-window: failed to create playbin: {e}");
                 std::process::exit(1);
             }
         },
@@ -169,8 +169,14 @@ fn main() {
     // playbin keeps a *user-provided* sink across that transition, so its window
     // is reused. (Its auto-selected sink is instead rebuilt on a URI change,
     // which destroys the old window and opens a new one — the flicker we want to
-    // avoid.) `autovideosink` still picks the right platform sink underneath.
-    if let Ok(videosink) = gst::ElementFactory::make("autovideosink").build() {
+    // avoid.) Prefer the Wayland sink when running in COSMIC so autovideosink
+    // cannot select a higher-ranked DRM/DirectFB sink in a headless session.
+    let sink = if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        gst::ElementFactory::make("waylandsink").build().or_else(|_| gst::ElementFactory::make("autovideosink").build())
+    } else {
+        gst::ElementFactory::make("autovideosink").build()
+    };
+    if let Ok(videosink) = sink {
         playbin.set_property("video-sink", &videosink);
     }
 
@@ -195,13 +201,13 @@ fn main() {
         let fname = elem.factory().map(|f| f.name().to_string()).unwrap_or_default();
         if fname.contains("hlsdemux") || fname.contains("dashdemux") || fname.contains("adaptivedemux") {
             set_uint_property(&elem, "start-bitrate", 100_000_000);
-            eprintln!("mare-video-window: biased {fname} initial variant high");
+            eprintln!("glacier-video-window: biased {fname} initial variant high");
         }
         None
     });
 
     let Some(bus) = playbin.bus() else {
-        eprintln!("mare-video-window: playbin has no bus");
+        eprintln!("glacier-video-window: playbin has no bus");
         std::process::exit(1);
     };
 
@@ -213,7 +219,7 @@ fn main() {
     let start_paused = position > 0.5;
     let initial_state = if start_paused { gst::State::Paused } else { gst::State::Playing };
     if playbin.set_state(initial_state).is_err() {
-        eprintln!("mare-video-window: failed to start playback");
+        eprintln!("glacier-video-window: failed to start playback");
         std::process::exit(1);
     }
     if start_paused {
@@ -234,7 +240,7 @@ fn main() {
                     main_loop.quit();
                 }
                 MessageView::Error(err) => {
-                    eprintln!("mare-video-window: pipeline error: {} ({:?})", err.error(), err.debug());
+                    eprintln!("glacier-video-window: pipeline error: {} ({:?})", err.error(), err.debug());
                     // Most commonly this is the user closing the sink's window.
                     emit("closed");
                     main_loop.quit();
@@ -245,7 +251,7 @@ fn main() {
         })
     };
     if _bus_watch.is_err() {
-        eprintln!("mare-video-window: failed to add bus watch");
+        eprintln!("glacier-video-window: failed to add bus watch");
         std::process::exit(1);
     }
 

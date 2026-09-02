@@ -1,15 +1,14 @@
-# <img src="resources/icon.svg" width="36" align="absmiddle" /> Maré Player
+# <img src="resources/icon.svg" width="36" align="absmiddle" /> Glacier Player
 
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/glima/mare-player/badge)](https://scorecard.dev/viewer/?uri=github.com/glima/mare-player)
-[![Codecov](https://codecov.io/gh/glima/mare-player/graph/badge.svg)](https://codecov.io/gh/glima/mare-player)
-[![GitHub Release](https://img.shields.io/github/release/glima/mare-player.svg)](https://github.com/glima/mare-player/releases/latest)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yyc94/glacier-player/badge)](https://scorecard.dev/viewer/?uri=github.com/yyc94/glacier-player)
+[![Codecov](https://codecov.io/gh/yyc94/glacier-player/graph/badge.svg)](https://codecov.io/gh/yyc94/glacier-player)
+[![GitHub Release](https://img.shields.io/github/release/yyc94/glacier-player.svg)](https://github.com/yyc94/glacier-player/releases/latest)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![GitHub Repo stars](https://img.shields.io/github/stars/glima/mare-player)
+![GitHub Repo stars](https://img.shields.io/github/stars/yyc94/glacier-player)
 
-A COSMIC™ desktop application for the TIDAL music streaming service.
-Stream Hi-Res audio, watch music videos, browse your library, and
-control playback — with a real-time spectrum visualizer and full
-MPRIS integration.
+A COSMIC™ desktop application for the QQ Music music streaming service.
+Stream audio, browse your library and artist catalog, and control playback
+with a real-time spectrum visualizer and full MPRIS integration.
 
 Builds as either a **panel applet** (popup from the system panel) or a
 **standalone window** (regular application) — chosen at compile time
@@ -18,63 +17,44 @@ via the `panel-applet` feature flag (enabled by default).
 <table align="center">
 <tr>
 <td align="center"><img src="resources/screenshot_applet.png" alt="Panel applet popup" width="320" /></td>
-<td align="center"><img src="resources/screenshot_standalone.png" alt="Standalone mode window (playing video)" width="600" /></td>
+<td align="center"><img src="resources/screenshot_standalone.png" alt="Standalone mode window" width="600" /></td>
 </tr>
 <tr>
 <td align="center"><sub>Panel Applet mode</sub></td>
-<td align="center"><sub>Standalone Window mode (playing video)</sub></td>
+<td align="center"><sub>Standalone Window mode</sub></td>
 </tr>
 </table>
 
 ## Features
 
-- **Hi-Res Audio Playback** — Stream FLAC up to 24-bit/192 kHz (DASH),
-  played through GStreamer (PipeWire/PulseAudio output)
-- **Music Video Playback** — Stream TIDAL music videos (HLS, H.264/AAC)
-  through a GStreamer pipeline, shown in an auto-hiding "theater" HUD
-  with the same clickable title/artist/context and transport controls
-  as the audio bar
+- **Audio Playback** — Select MP3, FLAC, or Hi-Res quality and play the best
+  source available to the signed-in QQ Music account through GStreamer
+  (PipeWire/PulseAudio output)
 - **Gapless Playback** — The next track is preloaded and decoded ahead
   of time for seamless, gap-free transitions
-- **Volume Normalization** — Per-track replay-gain is applied so tracks
-  play back at a consistent loudness
 - **Real-time Spectrum Visualizer** — FFT-based stereo frequency
-  display in the now-playing bar, driven by a PCM tap on the GStreamer
-  playback pipeline (audio tracks and music videos alike)
+  display in the now-playing bar, driven by a PCM tap on the audio pipeline
 - **MPRIS D-Bus Integration** — Control playback from any MPRIS client
   (playerctl, KDE Connect, desktop media keys, etc.)
-- **Library Browsing** — Playlists, albums, artists, mixes & radio,
-  favorite tracks, followed artists (profiles)
-- **Explore** — Browse TIDAL's curated pages: a Featured carousel plus
-  Genres, Moods & Activities, Decades, and more, with recursive
-  drill-down navigation
-- **Activity Feed** — New releases from the artists you follow, grouped
-  by time period
-- **Search** — Search tracks, albums, artists, and playlists across
-  TIDAL's catalog
-- **Track Radio** — Start a radio station from any track
-- **Track Recommendations** — A per-track detail page with the artist's
-  discography, related albums, and related artists
+- **Library Browsing** — Playlists, albums, favorite tracks, and local history
+- **Track Search** — Search QQ Music's song catalog
+- **Artist Browsing** — Open an artist's top tracks, albums, and related artists
 - **Lyrics** — Time-synced lyrics that highlight the current line (with
   a plain-text fallback when only flat lyrics are available)
 - **Play History** — A locally-tracked, searchable list of recently
   played tracks
-- **Artist Detail** — Bio, top tracks, and discography for any artist
-- **Favorites** — Add/remove tracks, albums, and follow/unfollow
-  artists
-- **Shuffle** — Shuffle play for playlists, albums, mixes, and
-  favorites
-- **Sharing** — Generate song.link URLs and copy to clipboard
+- **Favorites** — View available account playlists and saved data
+- **Shuffle** — Shuffle play for playlists, albums, and favorites
+- **Sharing** — Open QQ Music song and album pages or copy them to clipboard
 - **Dual Mode** — Builds as a COSMIC panel applet *or* a standalone
   windowed application (`--no-default-features`)
-- **Secure Authentication** — Browser sign-in, with credentials stored in
+- **Secure Authentication** — QR sign-in, with credentials stored in
   the system keyring
-- **Persistent Sessions** — Automatic token refresh across reboots
+- **Persistent Sessions** — Credential refresh across reboots when supported
 - **Disk Caching** — Artwork is cached on disk with a configurable size
   limit and LRU eviction; library data (playlists, albums, history,
   lyrics) is cached in an embedded database for instant startup
 - **Audio Quality Selection** — Low, High, Lossless, or Hi-Res
-  (Master)
 
 ## Installation
 
@@ -97,9 +77,8 @@ sudo pacman -S dbus libsecret libxkbcommon gstreamer gst-plugins-base
 
 #### Playback codecs (runtime)
 
-All playback — audio tracks **and** music videos — runs through GStreamer, so
-the demuxers/decoders from the good/bad/libav plugin sets are required at
-runtime: FLAC/AAC/MP3 for audio (DASH/HLS), and H.264 for video.
+Audio playback runs through GStreamer. Install the good/bad/libav plugin sets
+to provide the FLAC/AAC/MP3 demuxers and decoders used by QQ Music streams.
 
 ```sh
 # Fedora / RHEL (avdec_* come from RPM Fusion's gstreamer1-libav)
@@ -112,13 +91,28 @@ sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0
 sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav
 ```
 
-### Build & Install
+### QQMusicApi service
 
-Requires Rust 2024 edition (1.85+) and [just](https://github.com/casey/just).
+Glacier Player is an HTTP client for the
+[QQMusicApi FastAPI Web service](https://github.com/L-1124/QQMusicApi). Start
+that service before launching the player. Its default address is
+`http://127.0.0.1:8080`; a different base URL can be selected in Settings.
 
 ```sh
-git clone https://github.com/glima/mare-player.git
-cd mare-player
+git clone https://github.com/L-1124/QQMusicApi.git
+cd QQMusicApi
+pip install -r web/requirements.txt
+python web/run.py
+```
+
+### Build & Install
+
+Requires Rust 2024 edition (the repository pins 1.96.0) and
+[just](https://github.com/casey/just).
+
+```sh
+git clone https://github.com/yyc94/glacier-player.git
+cd glacier-player
 
 # Panel applet (default — installs into the COSMIC panel)
 just build-release
@@ -133,45 +127,23 @@ just install-standalone
 
 ### First-time Setup
 
-1. Click the Maré Player icon in your panel (or launch the standalone app)
-2. Click **Sign in with TIDAL**, then **Open Browser**
-3. Sign in on TIDAL's page, with Google, Apple or your email. The browser
-   hands the result back to Maré and the sign-in completes on its own
-
-If the login screen asks you to paste a URL, another application owns the
-`tidal://` scheme. Take it back, as your user rather than root:
-
-```sh
-xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
-```
+1. Click the Glacier Player icon in your panel (or launch the standalone app)
+2. Click **Sign in with QQ Music**
+3. Scan the displayed QR code in the QQ Music app and wait for confirmation
 
 ### Browsing & Playback
 
-- **Collection** — View your playlists, albums, artists, and favorite
-  tracks from the main screen
-- **Search** — Tap the search icon to find tracks, albums, artists, and
-  playlists
-- **Explore** — Browse TIDAL's curated pages (genres, moods, decades,
-  featured) with drill-down navigation
-- **Mixes & Radio** — Browse your personalized TIDAL mixes
-- **Feed** — See new releases from the artists you follow
+- **Collection** — View your playlists, albums, favorite tracks, and local
+  history from the main screen
+- **Search** — Tap the search icon to find tracks
 - **History** — Revisit recently played tracks (searchable)
-- **Track Radio** — Start a radio station from any track via the radio
-  button
-- **Music Videos** — Video tracks (marked with a video badge) play in a
-  full-area theater whose controls and track info auto-hide; move the
-  pointer to bring them back
 - **Lyrics** — Open the lyrics view for the current track; synced
   lyrics highlight the active line
-- **Artist Detail** — Tap an artist name to see bio, top tracks, and
-  discography
-- **Track Detail** — Tap a track title to see related albums and
-  artists seeded from it
 - **Now Playing** — Playback controls, seek bar, shuffle, and spectrum
   visualizer
 - **MPRIS** — Use media keys or any MPRIS controller (e.g.
   `playerctl play-pause`)
-- **Sharing** — Share the currently playing track via song.link
+- **Sharing** — Open or copy the QQ Music page for the current track
 - **Settings** — Audio quality and account info via
   the gear icon
 
@@ -183,6 +155,7 @@ settings:
 | Setting | Description | Default |
 |---|---|---|
 | Audio Quality | Low / High / Lossless / Hi-Res | Hi-Res |
+| QQ Music API URL | HTTP endpoint for QQMusicApi | `http://127.0.0.1:8080` |
 | Image Cache Limit | Max disk space for cached artwork | 200 MB |
 
 The playback volume is also persisted across restarts.
@@ -239,9 +212,9 @@ change applies immediately, no restart.
 
 ```
 src/
-├── playback/       # GStreamer engine (MediaPlayer): audio + video playbin, replay-gain volume, tee'd PCM tap, RGBA video appsink, gapless
+├── playback/       # GStreamer playback engine, volume/seek controls, PCM spectrum tap, and gapless staging
 ├── audio/          # FFT spectrum analyzer (fed by the playback PCM tap)
-├── tidal/          # TIDAL API client, PKCE auth, player queue, MPRIS2 D-Bus interface
+├── music/          # Provider-neutral models, queue state, and MPRIS2 D-Bus interface
 ├── handlers/       # Message handlers: auth, data loading, navigation, playback, misc (images, sharing, MPRIS, screenshots)
 ├── views/          # UI views
 │   ├── components/ # Reusable components: FadingClip widget, icons, constants, list helpers, row builders
@@ -255,18 +228,18 @@ src/
 | Crate | Purpose |
 |---|---|
 | [libcosmic](https://github.com/pop-os/libcosmic) | COSMIC application framework |
-| [tidlers](https://github.com/tomkoid/tidlers) | TIDAL API client |
-| [gstreamer-rs](https://gitlab.freedesktop.org/gstreamer/gstreamer-rs) | Playback engine for all audio and video (decode, stream, output, volume, seek, gapless) |
+| [QQMusicApi](https://github.com/L-1124/QQMusicApi) | QQ Music FastAPI Web service |
+| [gstreamer-rs](https://gitlab.freedesktop.org/gstreamer/gstreamer-rs) | Audio playback engine (decode, stream, output, volume, seek, gapless) |
 | [rustfft](https://crates.io/crates/rustfft) | FFT for spectrum analysis |
 | [zbus](https://crates.io/crates/zbus) | D-Bus / MPRIS2 interface |
 | [keyring](https://crates.io/crates/keyring) | System credential storage |
 | [reqwest](https://crates.io/crates/reqwest) | HTTP client for API requests |
-| [image](https://crates.io/crates/image) | Decoding/processing album & video artwork |
+| [image](https://crates.io/crates/image) | Decoding and processing artwork |
 
 ## Acknowledgments
 
 - Built with [libcosmic](https://github.com/pop-os/libcosmic)
-- TIDAL API access via [tidlers](https://github.com/tomkoid/tidlers)
+- QQ Music API access via [QQMusicApi](https://github.com/L-1124/QQMusicApi)
 
 ## Contributing
 
@@ -280,7 +253,6 @@ and the commit-message and dependency-licence rules.
 
 ## Disclaimer
 
-TIDAL is a registered trademark of TIDAL Music AS. This is an
-unofficial application and is not affiliated with or endorsed by TIDAL.
-Use at your own risk and ensure compliance with TIDAL's Terms of
-Service.
+QQ Music is a service of Tencent Music Entertainment Group. This is an
+unofficial application and is not affiliated with or endorsed by Tencent or
+QQ Music. Use it in accordance with QQ Music's terms and applicable law.

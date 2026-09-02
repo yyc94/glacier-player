@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Integration tests for the tidal/mpris.rs module.
+//! Integration tests for the music/mpris.rs module.
 //!
 //! Tests MprisPlaybackStatus (Default, as_str, Clone, Copy, PartialEq, Eq, Debug),
 //! MprisMetadata (Default, to_dbus_metadata, Clone, Debug, field access),
@@ -21,7 +21,7 @@
     clippy::wildcard_imports
 )]
 
-use cosmic_applet_mare::tidal::mpris::{LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState};
+use cosmic_applet_mare::music::mpris::{LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState};
 
 // ===========================================================================
 // MprisPlaybackStatus — Default
@@ -761,10 +761,10 @@ mod command_variants {
 
     #[test]
     fn open_uri_variant() {
-        let cmd = MprisCommand::OpenUri("tidal://track/12345".to_string());
+        let cmd = MprisCommand::OpenUri("qqmusic://track/12345".to_string());
         let dbg = format!("{:?}", cmd);
         assert!(dbg.contains("OpenUri"), "expected 'OpenUri' in: {dbg}");
-        assert!(dbg.contains("tidal://track/12345"), "expected URI in: {dbg}");
+        assert!(dbg.contains("qqmusic://track/12345"), "expected URI in: {dbg}");
     }
 
     #[test]
@@ -900,7 +900,7 @@ mod command_clone {
 
     #[test]
     fn clone_open_uri() {
-        let cmd = MprisCommand::OpenUri("tidal://album/42".to_string());
+        let cmd = MprisCommand::OpenUri("qqmusic://album/42".to_string());
         let cloned = cmd.clone();
         assert_eq!(format!("{:?}", cmd), format!("{:?}", cloned));
     }
@@ -1271,9 +1271,9 @@ mod edge_cases {
 
     #[test]
     fn command_open_uri_with_special_characters() {
-        let cmd = MprisCommand::OpenUri("tidal://track/123?foo=bar&baz=quux#fragment".to_string());
+        let cmd = MprisCommand::OpenUri("qqmusic://track/123?foo=bar&baz=quux#fragment".to_string());
         let dbg = format!("{:?}", cmd);
-        assert!(dbg.contains("tidal://track/123"));
+        assert!(dbg.contains("qqmusic://track/123"));
     }
 
     #[test]

@@ -1,17 +1,17 @@
 # প্রমাণীকরণ
-sign-in = TIDAL দিয়ে সাইন ইন করুন
+sign-in = QQ Music দিয়ে সাইন ইন করুন
 sign-in-prompt = আপনার সঙ্গীত অ্যাক্সেস করতে সাইন ইন করুন
-sign-in-title = TIDAL-এ সাইন ইন করুন
+sign-in-title = QQ Music-এ সাইন ইন করুন
 sign-out = সাইন আউট
 sign-in-button = সাইন ইন
 open-browser = ব্রাউজার খুলুন
 cancel = বাতিল
 verifying-auth = প্রমাণীকরণ যাচাই করা হচ্ছে...
 verifying-auth-wait = আপনার লগইন নিশ্চিত করার সময় অনুগ্রহ করে অপেক্ষা করুন।
-login-step-browser = 1. TIDAL লগইন পৃষ্ঠা খুলুন এবং সাইন ইন করুন:
+login-step-browser = 1. QQ Music লগইন পৃষ্ঠা খুলুন এবং সাইন ইন করুন:
 login-returns-here = সাইন ইন করলেই সরাসরি এখানে ফিরে আসবেন — কিছু কপি করতে হবে না।
 login-step-paste = 2. এরপর ব্রাউজার এমন একটি পৃষ্ঠায় পৌঁছাবে যা লোড হবে না। সেটির ঠিকানা কপি করে এখানে পেস্ট করুন:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = সাইন ইন সম্পূর্ণ করুন
 login-retry = এই সাইন ইন লিঙ্কটি আগেই ব্যবহৃত হয়েছে বা মেয়াদ শেষ — আবার ব্রাউজার খুলে নতুন ঠিকানা কপি করুন।
 preparing-login = লগইন প্রস্তুত করা হচ্ছে...
@@ -105,7 +105,7 @@ artist-count = {$count} জন {$count ->
 }
 
 # অনুসন্ধান
-search-placeholder = ট্র্যাক, অ্যালবাম, শিল্পী অনুসন্ধান করুন...
+search-placeholder = ট্র্যাক অনুসন্ধান করুন...
 
 # ডিবাগ
 debug-unoptimized = (অনুকূলিত নয়)
@@ -157,7 +157,7 @@ refresh = রিফ্রেশ
 
 # শেয়ার
 share = শেয়ার করুন
-share-description = একটি song.link URL তৈরি করুন এবং ক্লিপবোর্ডে অনুলিপি করুন
+share-description = একটি QQ Music URL তৈরি করুন এবং ক্লিপবোর্ডে অনুলিপি করুন
 share-track = ট্র্যাক শেয়ার করুন: {$title}
 share-album = অ্যালবাম শেয়ার করুন: {$title}
 

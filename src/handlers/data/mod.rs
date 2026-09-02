@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Data loading message handlers for Maré Player.
+//! Data loading message handlers for Glacier Player.
 //!
 //! This module handles all data-fetching concerns, split by domain:
 //!

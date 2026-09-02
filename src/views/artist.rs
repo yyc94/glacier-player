@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Artist detail view for Maré Player.
+//! Artist detail view for Glacier Player.
 //!
-//! Shows artist picture, bio, popularity, top tracks, music videos, and
-//! discography — flattened into a single virtual `List` (`artist_rows`) so only
+//! Shows artist picture, top tracks, and discography, flattened into a single
+//! virtual `List` (`artist_rows`) so only
 //! the rows visible in the viewport materialise and their covers load lazily.
 //! Navigable from the now-playing bar or search results.
 
@@ -12,17 +12,17 @@ use std::sync::Arc;
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
-use cosmic::widget::{self, button, text};
+use cosmic::widget::{self, text};
 
 use crate::fl;
 use crate::helpers::max_description_chars;
 use crate::messages::Message;
+use crate::music::models::{Album, Artist, ArtistRow, PlaybackSource, Track};
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::{Album, Artist, ArtistRow, PlaybackSource, Track};
 use crate::views::components::rows::{build_thumbnail, build_track_row};
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, TrackRowOptions, back_button, fading_header_title, fading_text_column, favorite_icon_handle, list_item,
-    scrollable_element, virtual_list_row,
+    ARTIST_PICTURE_SIZE, TrackRowOptions, back_button, fading_header_title, fading_text_column, list_item, scrollable_element,
+    virtual_list_row,
 };
 
 impl AppModel {
@@ -32,22 +32,11 @@ impl AppModel {
         let fallback_artist = fl!("fallback-artist");
         let artist_name = self.selected_artist.as_ref().map(|a| a.name.as_str()).unwrap_or(&fallback_artist);
 
-        // Header row: back button, title, follow heart
-        let mut header = widget::Row::new().push(back_button(Message::NavigateBack)).push(fading_header_title(artist_name));
-
-        // Follow/unfollow heart for the artist (pushed to far right)
-        if let Some(artist) = &self.selected_artist {
-            let is_followed = self.followed_artist_ids.contains(&artist.id);
-            let tooltip = if is_followed { fl!("tooltip-unfollow-artist") } else { fl!("tooltip-follow-artist") };
-            header = header.push(
-                button::icon(favorite_icon_handle(is_followed))
-                    .tooltip(tooltip)
-                    .on_press(Message::ToggleFollowArtist(artist.clone()))
-                    .padding(4),
-            );
-        }
-
-        let header = header.spacing(8).align_y(Alignment::Center);
+        let header = widget::Row::new()
+            .push(back_button(Message::NavigateBack))
+            .push(fading_header_title(artist_name))
+            .spacing(8)
+            .align_y(Alignment::Center);
 
         let content: Element<'_, Message> = if self.artist_rows.is_empty() {
             text(fl!("loading-artist")).size(14).into()
@@ -193,7 +182,7 @@ fn build_artist_album_row<'a>(loaded_images: &HandleCache, album: &Album) -> Ele
     list_item(row_content, Message::ShowAlbumDetail(album.clone()), 6)
 }
 
-/// Strip HTML tags and TIDAL's custom `[wimpLink ...]...[/wimpLink]` markup
+/// Strip HTML tags and QQ Music's custom `[wimpLink ...]...[/wimpLink]` markup
 /// from bio text, keeping only the visible content between link tags.
 pub(crate) fn strip_markup(input: &str) -> String {
     // First strip [wimpLink ...] and [/wimpLink] bracket tags

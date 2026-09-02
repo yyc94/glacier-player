@@ -1,4 +1,4 @@
-# Contributing to Maré Player
+# Contributing to Glacier Player
 
 Thanks for wanting to help. This document covers what you need installed,
 what to run before opening a pull request, and the two rules that are
@@ -56,7 +56,7 @@ won't tell you that a popup looks wrong.
 
 | Path                  | Role                                                          |
 |-----------------------|---------------------------------------------------------------|
-| `src/tidal/`          | TIDAL client, PKCE auth, models, MPRIS, play reporting        |
+| `src/music/`          | Provider-neutral models, playback state, and MPRIS              |
 | `src/playback/`       | GStreamer pipelines for audio and video, gapless, replay gain |
 | `src/handlers/`       | Message handlers — one module per concern                     |
 | `src/views/`          | Everything rendered, applet popup and standalone alike        |
@@ -137,7 +137,7 @@ BREAKING CHANGE: only when a user has to do something differently.
 
 ## Dependencies and licence compatibility
 
-Maré Player is **GPL-3.0-only**, so every dependency has to be
+Glacier Player is **GPL-3.0-only**, so every dependency has to be
 GPL-3.0-compatible. `just check` enforces this with `cargo deny`, against
 the allow list in [`deny.toml`](./deny.toml): permissive licences (MIT,
 Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, 0BSD, CC0, BSL-1.0) plus MPL-2.0
@@ -175,7 +175,7 @@ in binary size (`just bloat-check`).
 Locales live in `i18n/<lang>/cosmic_applet_mare.ftl`, with `i18n/en/` as the
 reference. Keep keys in the same order as `en`, translate the text rather
 than the key names, and run `just i18n-check` before submitting. Strings with
-units, TIDAL's own tier names, or anything shown next to data from the API
+units, QQ Music's own tier names, or anything shown next to data from the API
 are deliberately not localized — see `AudioQuality::display_name`.
 
 ## Pull requests
@@ -183,7 +183,7 @@ are deliberately not localized — see `AudioQuality::display_name`.
 1. Make sure `just check` and `just test-matrix` pass locally. CI runs the
    same recipes, so a green local run usually means a green CI run.
 2. Describe what changed and why, and reference the issue if there is one.
-3. Add tests for behaviour that can be tested without a TIDAL account —
+3. Add tests for behaviour that can be tested without a QQ Music account —
    parsing, models, helpers, state transitions. Anything that needs the API
    is exercised by hand; say what you tried in the PR.
 4. Keep the branch rebased on `main`. History is linear; merges are rebase
@@ -196,7 +196,7 @@ build, and the log:
 
 ```sh
 journalctl --user -o cat | grep cosmic-applet-mare      # applet, via cosmic-panel
-mare-player 2>&1 | tee /tmp/mare.log                    # standalone
+glacier-player 2>&1 | tee /tmp/glacier.log                    # standalone
 ```
 
 Settings has a log-level control if you need `debug` or `trace`. Redact your
@@ -204,15 +204,13 @@ access token if you paste raw log lines — it appears in some requests.
 
 ## Security
 
-Report anything involving credentials, the keyring, or the OAuth flow
+Report anything involving credentials, the keyring, or the QR login flow
 privately through GitHub's [security
-advisories](https://github.com/glima/mare-player/security/advisories/new)
+advisories](https://github.com/glima/glacier-player/security/advisories/new)
 rather than a public issue.
 
-Never commit a token, a session dump, or a `client_secret`. The OAuth client
-we authenticate as is documented in `src/tidal/client_identity.rs`; its
-secret stays in the `tidlers` crate and must not be copied into this
-repository.
+Never commit a token, a session dump, or a credential cookie. The QQMusicApi
+service owns provider secrets; they must not be copied into this repository.
 
 ## License
 

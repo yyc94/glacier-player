@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Main collection view for Maré Player.
+//! Main collection view for Glacier Player.
 //!
 //! This module renders the main view showing the user's collection categories:
 //! Playlists, Albums, and Favorite Tracks.
@@ -8,7 +8,7 @@
 use crate::fl;
 use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
-use cosmic::widget::{self, button, icon, text};
+use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
 use crate::state::AppModel;
@@ -59,23 +59,6 @@ impl AppModel {
         let tracks_count =
             if self.user_favorite_tracks.is_empty() { String::new() } else { format!(" ({})", self.user_favorite_tracks.len()) };
 
-        let mixes_count = if self.user_mixes.is_empty() { String::new() } else { format!(" ({})", self.user_mixes.len()) };
-
-        let mixes_btn = {
-            use crate::views::components::RADIO_SVG;
-            let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);
-            radio_icon.symbolic = true;
-            let row = widget::Row::new()
-                .push(widget::icon(radio_icon).size(24))
-                .push(text(format!("{}{}", fl!("mixes-and-radio"), mixes_count)).size(14))
-                .push(widget::space::horizontal())
-                .push(widget::icon::from_name("go-next-symbolic").size(16))
-                .spacing(12)
-                .align_y(Alignment::Center)
-                .width(Length::Fill);
-            crate::views::components::list_item(row, Message::ShowMixes, 10)
-        };
-
         let playlists_btn = AppModel::menu_row(
             "folder-music-symbolic",
             format!("{}{}", fl!("playlists"), playlists_count),
@@ -91,15 +74,6 @@ impl AppModel {
             Message::ShowFavoriteTracks,
         );
 
-        let profiles_count = if self.user_followed_artists.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.user_followed_artists.len())
-        };
-
-        let profiles_btn =
-            AppModel::menu_row("system-users-symbolic", format!("{}{}", fl!("profiles"), profiles_count), Message::ShowProfiles);
-
         let history_count = if self.play_history.is_empty() { String::new() } else { format!(" ({})", self.play_history.len()) };
 
         let history_btn = AppModel::menu_row(
@@ -108,27 +82,8 @@ impl AppModel {
             Message::ShowHistory,
         );
 
-        let feed_count =
-            if self.feed_activities.is_empty() { String::new() } else { format!(" ({})", self.feed_activities.len()) };
-
-        let feed_btn = AppModel::menu_row(
-            "preferences-system-notifications-symbolic",
-            format!("{}{}", fl!("feed"), feed_count),
-            Message::ShowFeed,
-        );
-
-        let explore_btn = AppModel::menu_row("find-location-symbolic", fl!("explore"), Message::ShowExplore);
-
-        let collection_section = widget::Column::new()
-            .push(albums_btn)
-            .push(explore_btn)
-            .push(feed_btn)
-            .push(history_btn)
-            .push(mixes_btn)
-            .push(playlists_btn)
-            .push(profiles_btn)
-            .push(tracks_btn)
-            .spacing(4);
+        let collection_section =
+            widget::Column::new().push(albums_btn).push(history_btn).push(playlists_btn).push(tracks_btn).spacing(4);
 
         widget::Column::new().push(header).push(collection_section).spacing(8).padding(12).width(Length::Fill).into()
     }

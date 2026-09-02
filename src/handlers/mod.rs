@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Message handlers for Maré Player.
+//! Message handlers for Glacier Player.
 //!
 //! This module contains all the message handling logic, split by domain:
 //!
-//! - `auth` - Authentication handlers (login, OAuth, logout, session restore)
+//! - `auth` - Authentication handlers (login, QR, logout, session restore)
 //! - `playback` - Playback control handlers (play, pause, seek, queue, shuffle)
 //! - `navigation` - View state transition handlers
 //! - `data` - Data loading handlers, further split into:

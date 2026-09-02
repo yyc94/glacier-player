@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Header menu bar for Maré Player standalone mode.
+//! Header menu bar for Glacier Player standalone mode.
 //!
 //! This module provides a responsive menu bar (Navigate, Playback, Account)
 //! that integrates into the COSMIC CSD header bar via [`header_start()`].
 //! It follows the same pattern used by cosmic-files and other COSMIC apps:
 //!
-//! 1. A [`TidalMenuAction`] enum implements [`MenuAction`] to bridge menu
+//! 1. A [`MusicMenuAction`] enum implements [`MenuAction`] to bridge menu
 //!    selections into the application's [`Message`] type.
 //! 2. [`menu_bar()`] builds a [`responsive_menu_bar`] widget with top-level
 //!    menu categories and their items.
@@ -32,7 +32,7 @@ use crate::state::AppModel;
 
 /// Stable widget ID for the responsive menu bar (used by libcosmic to track
 /// the menu bar's measured size for the collapse/expand logic).
-static MENU_ID: LazyLock<cosmic::widget::Id> = LazyLock::new(|| cosmic::widget::Id::new("tidal-responsive-menu"));
+static MENU_ID: LazyLock<cosmic::widget::Id> = LazyLock::new(|| cosmic::widget::Id::new("music-responsive-menu"));
 
 // ---------------------------------------------------------------------------
 // Menu action enum
@@ -45,7 +45,7 @@ static MENU_ID: LazyLock<cosmic::widget::Id> = LazyLock::new(|| cosmic::widget::
 /// satisfy (it contains non-Copy payloads).  Each variant maps to exactly one
 /// [`Message`] via the [`MenuAction`] impl below.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TidalMenuAction {
+pub enum MusicMenuAction {
     // Navigate
     ShowCollection,
     ShowSearch,
@@ -67,7 +67,7 @@ pub enum TidalMenuAction {
     Logout,
 }
 
-impl MenuAction for TidalMenuAction {
+impl MenuAction for MusicMenuAction {
     type Message = Message;
 
     fn message(&self) -> Message {
@@ -102,9 +102,9 @@ impl MenuAction for TidalMenuAction {
 /// Return a `Button` when `enabled` is true, otherwise a `ButtonDisabled`.
 fn menu_button_optional(
     label: &'static str,
-    action: TidalMenuAction,
+    action: MusicMenuAction,
     enabled: bool,
-) -> menu::Item<TidalMenuAction, &'static str> {
+) -> menu::Item<MusicMenuAction, &'static str> {
     if enabled { menu::Item::Button(label, None, action) } else { menu::Item::ButtonDisabled(label, None, action) }
 }
 
@@ -116,15 +116,15 @@ fn menu_button_optional(
 ///
 /// The returned [`Element`] is meant to be placed inside
 /// `Application::header_start()` so it renders in the CSD header bar.
-pub fn menu_bar<'a>(core: &'a Core, app: &'a AppModel, key_binds: &'a HashMap<KeyBind, TidalMenuAction>) -> Element<'a, Message> {
+pub fn menu_bar<'a>(core: &'a Core, app: &'a AppModel, key_binds: &'a HashMap<KeyBind, MusicMenuAction>) -> Element<'a, Message> {
     let is_playing = app.now_playing.is_some();
     let mode_label = if app.shuffle_enabled {
         "Mode: Shuffle"
     } else {
         match app.loop_status {
-            crate::tidal::mpris::LoopStatus::None => "Mode: Normal",
-            crate::tidal::mpris::LoopStatus::Track => "Mode: Repeat Track",
-            crate::tidal::mpris::LoopStatus::Playlist => "Mode: Repeat All",
+            crate::music::mpris::LoopStatus::None => "Mode: Normal",
+            crate::music::mpris::LoopStatus::Track => "Mode: Repeat Track",
+            crate::music::mpris::LoopStatus::Playlist => "Mode: Repeat All",
         }
     };
 
@@ -142,36 +142,34 @@ pub fn menu_bar<'a>(core: &'a Core, app: &'a AppModel, key_binds: &'a HashMap<Ke
                 (
                     "Navigate",
                     vec![
-                        menu::Item::Button("Collection", None, TidalMenuAction::ShowCollection),
-                        menu::Item::Button("Search", None, TidalMenuAction::ShowSearch),
+                        menu::Item::Button("Collection", None, MusicMenuAction::ShowCollection),
+                        menu::Item::Button("Search", None, MusicMenuAction::ShowSearch),
                         menu::Item::Divider,
-                        menu::Item::Button("Mixes & Radio", None, TidalMenuAction::ShowMixes),
-                        menu::Item::Button("Playlists", None, TidalMenuAction::ShowPlaylists),
-                        menu::Item::Button("Albums", None, TidalMenuAction::ShowAlbums),
-                        menu::Item::Button("Tracks", None, TidalMenuAction::ShowFavoriteTracks),
-                        menu::Item::Button("Profiles", None, TidalMenuAction::ShowProfiles),
+                        menu::Item::Button("Playlists", None, MusicMenuAction::ShowPlaylists),
+                        menu::Item::Button("Albums", None, MusicMenuAction::ShowAlbums),
+                        menu::Item::Button("Tracks", None, MusicMenuAction::ShowFavoriteTracks),
                     ],
                 ),
                 // ── Playback ────────────────────────────────────
                 (
                     "Playback",
                     vec![
-                        menu_button_optional("Play / Pause", TidalMenuAction::TogglePlayPause, is_playing),
-                        menu_button_optional("Next Track", TidalMenuAction::NextTrack, is_playing),
-                        menu_button_optional("Previous Track", TidalMenuAction::PreviousTrack, is_playing),
+                        menu_button_optional("Play / Pause", MusicMenuAction::TogglePlayPause, is_playing),
+                        menu_button_optional("Next Track", MusicMenuAction::NextTrack, is_playing),
+                        menu_button_optional("Previous Track", MusicMenuAction::PreviousTrack, is_playing),
                         menu::Item::Divider,
-                        menu::Item::Button(mode_label, None, TidalMenuAction::CyclePlaybackMode),
+                        menu::Item::Button(mode_label, None, MusicMenuAction::CyclePlaybackMode),
                         menu::Item::Divider,
-                        menu_button_optional("Stop", TidalMenuAction::StopPlayback, is_playing),
+                        menu_button_optional("Stop", MusicMenuAction::StopPlayback, is_playing),
                     ],
                 ),
                 // ── Account ─────────────────────────────────────
                 (
                     "Account",
                     vec![
-                        menu::Item::Button("Settings", None, TidalMenuAction::ShowSettings),
+                        menu::Item::Button("Settings", None, MusicMenuAction::ShowSettings),
                         menu::Item::Divider,
-                        menu::Item::Button("Log Out", None, TidalMenuAction::Logout),
+                        menu::Item::Button("Log Out", None, MusicMenuAction::Logout),
                     ],
                 ),
             ],

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Feed view for Maré Player.
+//! Feed view for Glacier Player.
 //!
 //! Shows new releases from followed artists, grouped by time period and
 //! flattened into a single virtual `List` (`feed_content`) so only the rows
@@ -13,8 +13,8 @@ use cosmic::widget::{self, button, text};
 
 use crate::fl;
 use crate::messages::Message;
+use crate::music::models::{FeedActivity, FeedItem, FeedRow};
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::{FeedActivity, FeedItem, FeedRow};
 use crate::views::components::rows::{build_album_row, build_thumbnail};
 use crate::views::components::{back_button, fading_text_column, list_item, scrollable_element, virtual_list_row};
 

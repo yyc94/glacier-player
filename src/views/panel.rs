@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Panel button view for Maré Player.
+//! Panel button view for Glacier Player.
 //!
 //! This module renders the panel button that appears in the system panel,
 //! showing either the app icon or the currently playing track info.
@@ -15,8 +15,8 @@ use cosmic::widget::button::Catalog;
 use cosmic::widget::{self, autosize, button, container};
 
 use crate::messages::Message;
+use crate::music::player::PlaybackState;
 use crate::state::AppModel;
-use crate::tidal::player::PlaybackState;
 use crate::views::components::{PANEL_ART_SIZE, VOLUME_BAR_WIDTH, scroll_to_volume_delta};
 
 /// Static ID for the autosize widget

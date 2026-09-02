@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Profiles (followed artists) view for Maré Player.
+//! Profiles (followed artists) view for Glacier Player.
 //!
 //! This module renders the user's followed artists as a browsable list.
 //! Tapping an artist navigates to the existing artist detail view.
@@ -12,8 +12,8 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
+use crate::music::models::Artist;
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::Artist;
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{back_button, fading_text_column, list_item, scrollable_element, virtual_list_row};
 

@@ -19,8 +19,8 @@
 //! ```
 //!
 //! - `volume(name=rg)` carries **replay-gain normalization**: tracks use
-//!   TIDAL's authored album replay gain; videos use a fixed configurable
-//!   pre-amp (TIDAL authors no replay-gain for videos). It's a single named
+//!   QQ Music's authored album replay gain; videos use a fixed configurable
+//!   pre-amp (QQ Music authors no replay-gain for videos). It's a single named
 //!   element, so swapping in computed loudness later is a one-element change.
 //! - **User volume** is the `playbin.volume` property, kept separate from the
 //!   `rg` element so the two compose multiplicatively.
@@ -451,16 +451,15 @@ pub struct MediaPlayer {
 impl MediaPlayer {
     /// Start playing an **audio** stream from `uri`.
     ///
-    /// `uri` is a GStreamer URI: `file:///tmp/<id>.mpd` for a DASH manifest
-    /// written to disk, or a direct `https://…` URL for single-file/BTS
-    /// qualities. `replay_gain_db` is TIDAL's authored album replay gain.
+    /// `uri` is a direct `http(s)` stream URL returned by QQMusicApi.
+    /// `replay_gain_db` is QQ Music's authored album replay gain.
     pub fn new_audio(uri: &str, analyzer: Option<SharedSpectrumAnalyzer>, replay_gain_db: f32) -> Result<Self, String> {
         Self::build(uri, MediaKind::Audio, analyzer, replay_gain_db, None)
     }
 
     /// Start playing a **video** stream (HLS `.m3u8`) from `uri`.
     ///
-    /// `replay_gain_db` is the fixed video pre-amp from config (TIDAL authors
+    /// `replay_gain_db` is the fixed video pre-amp from config (QQ Music authors
     /// no replay-gain for videos).
     pub fn new_video(uri: &str, analyzer: Option<SharedSpectrumAnalyzer>, replay_gain_db: f32) -> Result<Self, String> {
         Self::build(uri, MediaKind::Video, analyzer, replay_gain_db, None)

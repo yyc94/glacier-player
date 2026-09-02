@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Maré Player — a panel applet for the COSMIC™ desktop that streams
-//! music from the TIDAL service.
+//! Glacier Player — a COSMIC desktop applet for QQ Music.
 //!
-//! The applet provides library browsing, search, Hi-Res audio playback
-//! (symphonia + PulseAudio), a real-time spectrum visualizer, MPRIS2 media
+//! The applet provides library browsing, search, QQ Music audio playback
+//! (GStreamer), a real-time spectrum visualizer, MPRIS2 media
 //! control, and local disk caching — all integrated into the COSMIC panel.
 
 #[cfg(not(feature = "panel-applet"))]
@@ -13,7 +12,7 @@ use cosmic::iced::core::layout::Limits;
 // On-demand profiling (debug builds only, Linux).
 //   cargo build              → profiler is embedded automatically
 //   kill -USR1 <pid>         → samples for 10 s
-//   open /tmp/mare-flamegraph.svg
+//   open /tmp/glacier-flamegraph.svg
 #[cfg(all(debug_assertions, target_os = "linux"))]
 use pprof::ProfilerGuard;
 #[cfg(all(debug_assertions, target_os = "linux"))]
@@ -27,7 +26,7 @@ use tracing_subscriber::fmt::time::ChronoLocal;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 /// Start a background thread that waits for SIGUSR1, then samples for 10 s
-/// and writes a flamegraph SVG to `/tmp/mare-flamegraph.svg`.
+/// and writes a flamegraph SVG to `/tmp/glacier-flamegraph.svg`.
 #[cfg(all(debug_assertions, target_os = "linux"))]
 fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
     use std::fs::File;
@@ -56,7 +55,7 @@ fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
             std::thread::sleep(std::time::Duration::from_secs(10));
             match guard.report().build() {
                 Ok(report) => {
-                    let path = "/tmp/mare-flamegraph.svg";
+                    let path = "/tmp/glacier-flamegraph.svg";
                     match File::create(path) {
                         Ok(mut file) => {
                             if let Err(e) = report.flamegraph(&mut file) {
@@ -80,38 +79,7 @@ fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
     running
 }
 
-/// Hand a sign-in callback to the running Maré and report whether it landed.
-///
-/// The browser launches us with `tidal://login/auth?code=…` after the user
-/// signs in. Only the process that started the login holds the PKCE code
-/// verifier, so this one forwards the URI over the session bus and gets out of
-/// the way rather than opening a second player.
-fn forward_login_callback(uri: &str) -> i32 {
-    let result = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| format!("failed to start a runtime: {e}"))
-        .and_then(|rt| rt.block_on(cosmic_applet_mare::tidal::login_uri::forward_to_running_instance(uri)));
-
-    match result {
-        Ok(()) => 0,
-        Err(e) => {
-            eprintln!("Maré Player: could not deliver the TIDAL sign-in: {e}");
-            1
-        }
-    }
-}
-
 fn main() -> cosmic::iced::Result {
-    // A `tidal://` URI means the browser is returning from a TIDAL sign-in.
-    // Handle it before touching the UI: this process exists only to pass the
-    // URI along.
-    if let Some(uri) = std::env::args().nth(1)
-        && uri.starts_with(&format!("{}://", cosmic_applet_mare::tidal::login_uri::CALLBACK_SCHEME))
-    {
-        std::process::exit(forward_login_callback(&uri));
-    }
-
     // Initialize tracing with filters to reduce noise
     // Filter out noisy warnings from iced_futures subscription tracker
     let mut filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));

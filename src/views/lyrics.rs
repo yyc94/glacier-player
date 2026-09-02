@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Lyrics view for Maré Player.
+//! Lyrics view for Glacier Player.
 //!
 //! Renders the currently-selected track's lyrics in one of three modes,
-//! picked at render time based on what TIDAL returned:
+//! picked at render time based on what QQ Music returned:
 //!
 //! 1. **Synced** — when LRC subtitles are available, render each line
 //!    as a separate text widget and highlight the currently-active line
@@ -11,10 +11,10 @@
 //!    `handle_playback_tick`).
 //! 2. **Plain** — when only flat text is available, render the whole
 //!    block in a single scrollable text widget.
-//! 3. **Empty** — when TIDAL has no lyrics for this track, show an
+//! 3. **Empty** — when QQ Music has no lyrics for this track, show an
 //!    informative empty state with the track title for context.
 //!
-//! Provider attribution (`MusixMatch`, `TIDAL`, etc.) is shown in a
+//! Provider attribution (`MusixMatch`, `QQ Music`, etc.) is shown in a
 //! small footer at the bottom of the view per the third-party
 //! provider's licensing requirements.
 
@@ -26,8 +26,8 @@ use cosmic::widget::{self, container, scrollable, text};
 
 use crate::fl;
 use crate::messages::Message;
+use crate::music::models::TrackLyrics;
 use crate::state::AppModel;
-use crate::tidal::models::TrackLyrics;
 use crate::views::components::{back_button, fading_header_title};
 
 /// Font size for the active synced line (the karaoke "now-playing" line).
@@ -92,7 +92,7 @@ impl AppModel {
     /// Auto-scrolling to the active line is left as a future
     /// enhancement — it requires a stable `scrollable::Id` and a
     /// `scrollable::scroll_to` `Task`, neither of which compose well
-    /// with mare's view-tree rebuild model.
+    /// with glacier's view-tree rebuild model.
     fn render_synced_lyrics(&self, lyrics: &TrackLyrics) -> Element<'_, Message> {
         let active = self.current_lyric_index;
         let alignment = if lyrics.is_right_to_left { Horizontal::Right } else { Horizontal::Center };
@@ -115,7 +115,7 @@ impl AppModel {
 
     /// Render plain-text (non-synced) lyrics as a single scrollable block.
     ///
-    /// Preserves the original line breaks from TIDAL; the wrapping is
+    /// Preserves the original line breaks from QQ Music; the wrapping is
     /// handled by the text widget so very long lines (rare in lyrics
     /// but possible in spoken-word tracks) still display correctly.
     fn render_plain_lyrics(&self, lyrics: &TrackLyrics) -> Element<'_, Message> {

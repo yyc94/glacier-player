@@ -1,47 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Data models for TIDAL API responses.
-//!
-//! These models provide a simplified view of TIDAL's data structures
-//! suitable for display in the COSMIC applet UI.
+//! Provider-neutral music data models used by the QQ Music adapter and UI.
 
 use serde::{Deserialize, Serialize};
-
-// ── CDN URL helpers ────────────────────────────────────────────────────
-
-/// Default cover size requested from TIDAL's resource CDN.
-///
-/// 320 px square is enough for list rows and search hits and is what almost
-/// every call site wants.  Use [`tidal_cover_url_sized`] when you need a
-/// different size (e.g. 750 for the artist detail hero).
-pub const DEFAULT_COVER_SIZE_PX: u32 = 320;
-
-/// Build a TIDAL CDN URL for an image UUID at the default size.
-///
-/// TIDAL's CDN expects the UUID's hyphen-separated segments to be joined by
-/// `/` rather than `-`, followed by `<size>x<size>.jpg`.  Example:
-///
-/// ```text
-/// uuid:  "7e58f111-5b1a-492a-aaf1-88fb55ce8a44"
-/// url:   "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
-/// ```
-pub fn tidal_cover_url(uuid: &str) -> String {
-    tidal_cover_url_sized(uuid, DEFAULT_COVER_SIZE_PX)
-}
-
-/// Build a TIDAL CDN URL for an image UUID at a specific square size.
-pub fn tidal_cover_url_sized(uuid: &str, size_px: u32) -> String {
-    format!("https://resources.tidal.com/images/{}/{size_px}x{size_px}.jpg", uuid.replace('-', "/"))
-}
-
-/// Build a TIDAL CDN URL for a featured-promo image UUID.
-///
-/// Promo artwork is a 550×400 banner — it has no square variant, so the
-/// usual `320x320` request returns 403 Forbidden.  Featured cards must
-/// request this specific non-square size.
-pub fn tidal_promo_image_url(uuid: &str) -> String {
-    format!("https://resources.tidal.com/images/{}/550x400.jpg", uuid.replace('-', "/"))
-}
 
 /// A music track
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -96,50 +57,6 @@ impl Track {
     }
 }
 
-/// Convert from tidlers Track type (full track response)
-impl From<tidlers::client::models::track::Track> for Track {
-    fn from(t: tidlers::client::models::track::Track) -> Self {
-        let album = t.album;
-        Self {
-            id: t.id.to_string(),
-            title: t.title,
-            duration: t.duration as u32,
-            track_number: t.track_number,
-            artist_name: t.artist.name,
-            artist_id: Some(t.artist.id.to_string()),
-            album_name: album.as_ref().map(|a| a.title.clone()),
-            album_id: album.as_ref().map(|a| a.id.to_string()),
-            cover_url: album.as_ref().and_then(|a| a.cover.as_deref()).map(tidal_cover_url),
-            explicit: t.explicit,
-            audio_quality: Some(t.audio_quality),
-            is_video: false,
-        }
-    }
-}
-
-/// Convert from tidlers SearchTrackHit type (search results)
-impl From<tidlers::client::models::search::SearchTrackHit> for Track {
-    fn from(t: tidlers::client::models::search::SearchTrackHit) -> Self {
-        let artist_name = t.artists.first().and_then(|a| a.name.clone()).unwrap_or_else(|| "Unknown Artist".to_string());
-        let artist_id = t.artists.first().and_then(|a| a.id.map(|id| id.to_string()));
-
-        Self {
-            id: t.id.to_string(),
-            title: t.title,
-            duration: t.duration as u32,
-            track_number: t.track_number.unwrap_or(0),
-            artist_name,
-            artist_id,
-            album_name: t.album.as_ref().map(|a| a.title.clone()),
-            album_id: t.album.as_ref().map(|a| a.id.to_string()),
-            cover_url: t.album.as_ref().map(|a| tidal_cover_url(&a.cover)),
-            explicit: t.explicit,
-            audio_quality: t.audio_quality,
-            is_video: false,
-        }
-    }
-}
-
 /// A music album
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Album {
@@ -167,47 +84,6 @@ pub struct Album {
     pub review: Option<String>,
 }
 
-/// Convert from tidlers AlbumResponse type (full album info)
-impl From<tidlers::client::models::album::AlbumResponse> for Album {
-    fn from(a: tidlers::client::models::album::AlbumResponse) -> Self {
-        Self {
-            id: a.id.to_string(),
-            title: a.title,
-            artist_name: a.artist.name,
-            artist_id: Some(a.artist.id.to_string()),
-            num_tracks: a.number_of_tracks,
-            duration: a.duration as u32,
-            release_date: Some(a.release_date),
-            cover_url: Some(tidal_cover_url(&a.cover)),
-            explicit: a.explicit,
-            audio_quality: Some(a.audio_quality),
-            review: None,
-        }
-    }
-}
-
-/// Convert from tidlers SearchAlbumHit type (search results)
-impl From<tidlers::client::models::search::SearchAlbumHit> for Album {
-    fn from(a: tidlers::client::models::search::SearchAlbumHit) -> Self {
-        let artist_name = a.artists.first().and_then(|ar| ar.name.clone()).unwrap_or_else(|| "Unknown Artist".to_string());
-        let artist_id = a.artists.first().and_then(|ar| ar.id.map(|id| id.to_string()));
-
-        Self {
-            id: a.id.to_string(),
-            title: a.title,
-            artist_name,
-            artist_id,
-            num_tracks: a.number_of_tracks.unwrap_or(0),
-            duration: a.duration.unwrap_or(0) as u32,
-            release_date: a.release_date,
-            cover_url: a.cover.as_deref().map(tidal_cover_url),
-            explicit: a.explicit.unwrap_or(false),
-            audio_quality: a.audio_quality,
-            review: None,
-        }
-    }
-}
-
 /// A music artist
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Artist {
@@ -223,72 +99,8 @@ pub struct Artist {
     pub popularity: Option<u32>,
     /// Artist roles (e.g. "Artist", "Producer", "DJ")
     pub roles: Vec<String>,
-    /// TIDAL URL for the artist page
+    /// Optional provider URL for the artist page
     pub url: Option<String>,
-}
-
-/// Convert from tidlers Artist type (basic, embedded in other responses)
-impl From<tidlers::client::models::artist::Artist> for Artist {
-    fn from(a: tidlers::client::models::artist::Artist) -> Self {
-        Self {
-            id: a.id.to_string(),
-            name: a.name,
-            picture_url: a.picture.as_deref().map(tidal_cover_url),
-            bio: None,
-            popularity: None,
-            roles: Vec::new(),
-            url: None,
-        }
-    }
-}
-
-/// Convert from tidlers ArtistResponse type (full artist detail)
-impl From<tidlers::client::models::artist::ArtistResponse> for Artist {
-    fn from(a: tidlers::client::models::artist::ArtistResponse) -> Self {
-        Self {
-            id: a.id.to_string(),
-            name: a.name,
-            picture_url: a.picture.as_deref().map(|p| tidal_cover_url_sized(p, 750)),
-            bio: None,
-            popularity: Some(a.popularity),
-            roles: a.artist_roles.into_iter().map(|r| r.category).collect(),
-            url: Some(a.url),
-        }
-    }
-}
-
-/// Convert from tidlers SearchArtistHit type (search results)
-impl From<tidlers::client::models::search::SearchArtistHit> for Artist {
-    fn from(a: tidlers::client::models::search::SearchArtistHit) -> Self {
-        Self {
-            id: a.id.to_string(),
-            name: a.name,
-            picture_url: a.picture.as_deref().map(tidal_cover_url),
-            bio: None,
-            popularity: None,
-            roles: Vec::new(),
-            url: None,
-        }
-    }
-}
-
-/// Convert from tidlers ArtistAlbum type (artist discography)
-impl From<tidlers::client::models::album::ArtistAlbum> for Album {
-    fn from(a: tidlers::client::models::album::ArtistAlbum) -> Self {
-        Self {
-            id: a.id.to_string(),
-            title: a.title,
-            artist_name: a.artist.name,
-            artist_id: Some(a.artist.id.to_string()),
-            num_tracks: a.number_of_tracks,
-            duration: a.duration as u32,
-            release_date: Some(a.release_date),
-            cover_url: Some(tidal_cover_url(&a.cover)),
-            explicit: a.explicit,
-            audio_quality: Some(a.audio_quality),
-            review: None,
-        }
-    }
 }
 
 /// A playlist
@@ -321,42 +133,6 @@ impl Playlist {
         let minutes = (self.duration % 3600) / 60;
         let seconds = self.duration % 60;
         if hours > 0 { format!("{}:{:02}:{:02}", hours, minutes, seconds) } else { format!("{}:{:02}", minutes, seconds) }
-    }
-}
-
-/// Convert from tidlers PlaylistResponse type (user playlists)
-impl From<tidlers::client::models::playlist::PlaylistResponse> for Playlist {
-    fn from(p: tidlers::client::models::playlist::PlaylistResponse) -> Self {
-        Self {
-            uuid: p.uuid,
-            title: p.title,
-            description: Some(p.description),
-            creator_name: None,
-            num_tracks: p.number_of_tracks as u32,
-            duration: p.duration as u32,
-            last_updated: Some(p.last_updated),
-            image_url: Some(tidal_cover_url(&p.image)),
-            is_user_playlist: true,
-        }
-    }
-}
-
-/// Convert from tidlers SearchPlaylistHit type (search results)
-impl From<tidlers::client::models::search::SearchPlaylistHit> for Playlist {
-    fn from(p: tidlers::client::models::search::SearchPlaylistHit) -> Self {
-        // Prefer square_image over image - the image field URLs often return 403 Forbidden
-        let image_id = p.square_image.or(p.image);
-        Self {
-            uuid: p.uuid,
-            title: p.title,
-            description: p.description,
-            creator_name: None,
-            num_tracks: p.number_of_tracks.unwrap_or(0),
-            duration: p.duration.unwrap_or(0) as u32,
-            last_updated: p.last_updated,
-            image_url: image_id.as_deref().map(tidal_cover_url),
-            is_user_playlist: false,
-        }
     }
 }
 
@@ -394,36 +170,26 @@ pub struct SearchResults {
 
 // ── Playback source ──────────────────────────────────────────────────
 
-/// The TIDAL container that started a playback session.
+/// The container that started a playback session.
 ///
-/// Maps directly onto TIDAL's `sourceType` enum in playback_session
-/// events.  Threaded from the view that initiated playback (album detail,
-/// playlist detail, mix detail, etc.) into `play_reporter` so plays
-/// surface in Recently Played and credit the right container in the
-/// TIDAL recommendations engine.
+/// Kept as local context so the now-playing bar can identify the source
+/// collection that initiated playback.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlaybackSourceKind {
     Album,
     Playlist,
     Mix,
     Artist,
-    /// Track-seeded radio (TIDAL's "Radio" feature: pick a track, get a
-    /// generated station of similar tracks).  Emits `TRACK_RADIO` as the
-    /// `sourceType`; consistent with TIDAL's `ARTIST_RADIO` pattern.
-    /// **Probe**: this string is inferred, not confirmed from a captured
-    /// official-client play.  If TIDAL ignores it, plays fall back to
-    /// the same not-in-Recently-Played behaviour as `Track`.
+    /// Track-seeded radio generated from a seed track.
     TrackRadio,
     /// Catch-all for ad-hoc / local-only contexts (favorites list,
-    /// history view, single-track plays).  Reports as `TRACK` to TIDAL,
-    /// which counts toward 'Most Listened' aggregates but doesn't
-    /// surface in Recently Played.
+    /// history view, single-track plays).
     Track,
 }
 
 impl PlaybackSourceKind {
-    /// String the TIDAL Event Producer expects for `sourceType`.
-    pub fn as_tidal_str(&self) -> &'static str {
+    /// Stable source kind string for local diagnostics.
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Album => "ALBUM",
             Self::Playlist => "PLAYLIST",
@@ -436,13 +202,11 @@ impl PlaybackSourceKind {
 }
 
 /// Resolved source for a playback session: the kind of container, its
-/// TIDAL id, and a human-readable name for UI display.
+/// Provider id and a human-readable name for UI display.
 #[derive(Debug, Clone)]
 pub struct PlaybackSource {
     pub kind: PlaybackSourceKind,
-    /// TIDAL id appropriate to `kind`.  For `Track` contexts this is
-    /// typically the track id itself — the play still attributes
-    /// somewhere, just not as a container play.
+    /// Provider id appropriate to `kind`.
     pub id: String,
     /// Human-readable name shown in the now-playing bar (album title,
     /// playlist name, mix title, etc.).
@@ -463,25 +227,19 @@ impl PlaybackSource {
     pub fn artist(id: impl Into<String>, name: impl Into<String>) -> Self {
         Self { kind: PlaybackSourceKind::Artist, id: id.into(), display_name: name.into() }
     }
-    /// Track-seeded radio station: pick a track, TIDAL generates a
-    /// station of similar tracks.  Tries `sourceType=TRACK_RADIO` — see
-    /// [`PlaybackSourceKind::TrackRadio`] for the probe caveat.
+    /// Track-seeded radio station.
     pub fn track_radio(seed_track_id: impl Into<String>, display_name: impl Into<String>) -> Self {
         Self { kind: PlaybackSourceKind::TrackRadio, id: seed_track_id.into(), display_name: display_name.into() }
     }
 
-    /// Catch-all fallback: a play without a real container context
-    /// (e.g. from the favorites list, the history view, or a single
-    /// MPRIS OpenUri).  TIDAL won't surface these in Recently Played.
+    /// Catch-all fallback: a play without a real container context.
     pub fn track(id: impl Into<String>, display_name: impl Into<String>) -> Self {
         Self { kind: PlaybackSourceKind::Track, id: id.into(), display_name: display_name.into() }
     }
 
     /// Ad-hoc playback context with only a display label — used for
     /// the favorites list, the history view, etc., where there is no
-    /// real TIDAL container.  The source id is left empty; `open_play_session`
-    /// substitutes the per-listen track id when sending the play_log
-    /// event, so attribution still credits the right track.
+    /// real container. The source id is left empty.
     pub fn ad_hoc(display_name: impl Into<String>) -> Self {
         Self { kind: PlaybackSourceKind::Track, id: String::new(), display_name: display_name.into() }
     }
@@ -503,7 +261,7 @@ impl SearchResults {
     }
 }
 
-/// A single activity from the TIDAL Feed (new releases from followed artists).
+/// A single activity from the QQ Music Feed (new releases from followed artists).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedActivity {
     /// The feed item (album release or history mix).
@@ -523,13 +281,13 @@ pub enum FeedItem {
     HistoryMix { id: String, title: String, subtitle: String, image_url: Option<String> },
 }
 
-// ── Explore (TIDAL browse pages) ────────────────────────────────────
+// ── Explore (QQ Music browse pages) ────────────────────────────────────
 //
-// Mirrors TIDAL's `GET /v1/pages/{path}` response: a page is a list of
+// Mirrors QQ Music's `GET /v1/pages/{path}` response: a page is a list of
 // modules (sections), each holding either promo cards, links to other
 // browse pages (genres/moods/decades/…), or content lists.
 
-/// A fully parsed TIDAL browse page (e.g. "explore", a genre, a mood).
+/// A fully parsed QQ Music browse page (e.g. "explore", a genre, a mood).
 #[derive(Debug, Clone, Default)]
 pub struct ExplorePage {
     pub title: String,
@@ -578,7 +336,7 @@ pub enum ExploreTarget {
 #[derive(Debug, Clone)]
 pub struct PageLink {
     pub text: String,
-    /// TIDAL page path to load, e.g. `"genre_hip_hop"` or a full
+    /// QQ Music page path to load, e.g. `"genre_hip_hop"` or a full
     /// `apiPath` the client normalises before requesting.
     pub path: String,
 }
@@ -707,21 +465,21 @@ pub struct LrcLine {
     pub text: String,
 }
 
-/// Lyrics for a single track, as returned by TIDAL.
+/// Lyrics for a single track, as returned by QQ Music.
 ///
-/// TIDAL serves two parallel representations: a flat `plain_text` for
+/// QQ Music serves two parallel representations: a flat `plain_text` for
 /// non-synced display and an `lrc_lines` vector parsed from the
 /// timestamped `subtitles` field.  Either may be empty depending on the
 /// provider's data — instrumental tracks tend to have neither; older
 /// catalog entries often have plain text but no LRC sync.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TrackLyrics {
-    /// Provider attribution string (e.g. "MusixMatch", "TIDAL").
+    /// Provider attribution string (e.g. "MusixMatch", "QQ Music").
     pub provider: Option<String>,
     /// Plain-text lyrics with original line breaks preserved.
     pub plain_text: Option<String>,
     /// Time-synced lines parsed from the LRC subtitles, sorted by
-    /// `time_ms` ascending.  Empty when TIDAL has no synced data.
+    /// `time_ms` ascending.  Empty when QQ Music has no synced data.
     pub lrc_lines: Vec<LrcLine>,
     /// True for languages that render right-to-left (Arabic, Hebrew,
     /// Farsi).  UI should mirror text alignment accordingly.
@@ -729,7 +487,7 @@ pub struct TrackLyrics {
 }
 
 impl TrackLyrics {
-    /// True when TIDAL returned neither plain nor synced lyrics.
+    /// True when QQ Music returned neither plain nor synced lyrics.
     pub fn is_empty(&self) -> bool {
         self.plain_text.as_deref().is_none_or(str::is_empty) && self.lrc_lines.is_empty()
     }
@@ -760,7 +518,7 @@ impl TrackLyrics {
     }
 }
 
-/// Parse a TIDAL `subtitles` LRC-format string into time-synced lines.
+/// Parse a QQ Music `subtitles` LRC-format string into time-synced lines.
 ///
 /// Standard LRC syntax: `[mm:ss.xx]lyric text` per line, where the
 /// fractional second separator may be `.` or `:` and may have 1–3
@@ -770,7 +528,7 @@ impl TrackLyrics {
 ///
 /// Metadata tags (`[ti:Title]`, `[ar:Artist]`, `[al:Album]`, `[by:...]`,
 /// `[length:...]`, `[offset:...]`) are skipped — the offset tag would
-/// be useful but TIDAL doesn't appear to use it.  Empty lines and lines
+/// be useful but QQ Music doesn't appear to use it.  Empty lines and lines
 /// with no timestamp are skipped.
 ///
 /// Result is sorted by `time_ms` ascending, so consumers can rely on
@@ -827,7 +585,7 @@ pub fn parse_lrc(subtitles: &str) -> Vec<LrcLine> {
 /// Accepted shapes: `mm:ss`, `mm:ss.xx`, `mm:ss.xxx`, `mm:ss:xx`.
 /// Hour-prefixed timestamps (`hh:mm:ss.xx`) are rare in practice and
 /// not currently supported — the format ambiguity (vs `mm:ss:xx`)
-/// would need a smarter parser if TIDAL ever ships them.
+/// would need a smarter parser if QQ Music ever ships them.
 fn parse_lrc_timestamp(tag: &str) -> Option<u64> {
     // Must start with at least one digit then ':'.
     let (mm_str, after_mm) = tag.split_once(':')?;
@@ -865,30 +623,30 @@ fn parse_lrc_timestamp(tag: &str) -> Option<u64> {
 
 // ── Credits ───────────────────────────────────────────────────────────────────────
 
-/// A single credited person on a track, as returned by TIDAL's credits
+/// A single credited person on a track, as returned by QQ Music's credits
 /// endpoint.
 ///
-/// Contributors carry real TIDAL **artist** ids (the same id space as
+/// Contributors carry real QQ Music **artist** ids (the same id space as
 /// `/v1/artists/{id}`), so the credits view can link straight through to an
-/// artist page.  The id is optional because TIDAL occasionally returns
+/// artist page.  The id is optional because QQ Music occasionally returns
 /// name-only entries for people who have no catalog presence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreditContributor {
     /// Display name ("Jimmy Page").
     pub name: String,
-    /// TIDAL artist id, when the contributor has an artist page.
+    /// QQ Music artist id, when the contributor has an artist page.
     pub id: Option<String>,
 }
 
 /// One credit role and everyone credited under it.
 ///
-/// TIDAL groups by role, so a person appearing as both "Writer" and
+/// QQ Music groups by role, so a person appearing as both "Writer" and
 /// "Guitar" shows up in two [`CreditRole`] entries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CreditRole {
-    /// Role name as TIDAL spells it ("Producer", "Mastering Engineer", …).
+    /// Role name as QQ Music spells it ("Producer", "Mastering Engineer", …).
     pub role: String,
-    /// People credited under this role, in TIDAL's order.
+    /// People credited under this role, in QQ Music's order.
     pub contributors: Vec<CreditContributor>,
 }
 
@@ -896,31 +654,31 @@ pub struct CreditRole {
 /// list plus the handful of catalog fields (label, release date, ISRC, BPM)
 /// that live on the track object rather than in the credits payload.
 ///
-/// All fields are optional — TIDAL's coverage varies a lot by release, and a
+/// All fields are optional — QQ Music's coverage varies a lot by release, and a
 /// track with no credits at all is a normal (not error) outcome, mirroring how
 /// [`TrackLyrics`] treats "no lyrics".
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TrackCredits {
-    /// Credit roles in TIDAL's order (producer first, then instruments…).
+    /// Credit roles in QQ Music's order (producer first, then instruments…).
     #[serde(default)]
     pub roles: Vec<CreditRole>,
     /// Copyright / label line ("℗ 2013 Atlantic Records").
     #[serde(default)]
     pub copyright: Option<String>,
     /// Release date as `YYYY-MM-DD`, derived from the track's stream start
-    /// date (TIDAL's own credits panel shows the same value).
+    /// date (QQ Music's own credits panel shows the same value).
     #[serde(default)]
     pub released: Option<String>,
     /// International Standard Recording Code.
     #[serde(default)]
     pub isrc: Option<String>,
-    /// Beats per minute, when TIDAL has analysed the track.
+    /// Beats per minute, when QQ Music has analysed the track.
     #[serde(default)]
     pub bpm: Option<u32>,
 }
 
 impl TrackCredits {
-    /// True when TIDAL returned nothing worth rendering — no roles and none
+    /// True when QQ Music returned nothing worth rendering — no roles and none
     /// of the catalog extras.  The view shows its empty state in that case.
     pub fn is_empty(&self) -> bool {
         self.roles.is_empty() && self.copyright.is_none() && self.released.is_none() && self.isrc.is_none() && self.bpm.is_none()
@@ -929,26 +687,12 @@ impl TrackCredits {
 
 // ── Stream quality ────────────────────────────────────────────────────────────────
 
-/// What TIDAL *actually served* for a stream, as reported by
-/// `playbackinfopostpaywall` — which is not necessarily what we asked for.
-///
-/// Two independent things decide it, and asking for a tier past either one is
-/// answered with a lower tier rather than an error:
-///
-/// * What the OAuth client we authenticate as is granted. That ceiling is
-///   fixed at login, not by the subscription — see
-///   [`client_identity`](crate::tidal::client_identity).
-/// * Whether the recording exists in that tier at all. Most of the catalogue
-///   tops out at 16-bit/44.1 kHz.
-///
-/// Nothing else in the API answers the question honestly. The catalogue
-/// advertises capability (`mediaMetadata.tags` carries `HIRES_LOSSLESS` on
-/// plenty of tracks), and the subscription endpoint reports a stale MQA-era
-/// `highestSoundQuality`. So the playback response is the source of truth, and
-/// it is what the now-playing bar shows.
+/// Quality metadata associated with a resolved stream. QQ Music may downgrade
+/// a requested tier when a recording or account does not support it; the
+/// playback response is the source of truth shown by the UI.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StreamQuality {
-    /// TIDAL's own label for the served stream: `LOSSLESS`,
+    /// QQ Music's own label for the served stream: `LOSSLESS`,
     /// `HI_RES_LOSSLESS`, `HIGH`, `LOW`.
     pub quality: String,
     /// Sample rate in Hz, when the response carried one.
@@ -959,7 +703,7 @@ pub struct StreamQuality {
 
 impl StreamQuality {
     /// First badge line — the tier in title case, so it sits quietly next to
-    /// the meter instead of shouting TIDAL's wire constant.
+    /// the meter instead of shouting QQ Music's wire constant.
     ///
     /// The two known hi-res spellings are given explicitly to match the wording
     /// of the Settings dropdown (`Hi-Res Lossless`), since the point of the
@@ -1202,7 +946,7 @@ mod tests {
 
     #[test]
     fn parse_lrc_handles_carriage_returns() {
-        // TIDAL occasionally serves CRLF; trim_end_matches handles it.
+        // QQ Music occasionally serves CRLF; trim_end_matches handles it.
         let lines = parse_lrc("[00:01.00]One\r\n[00:02.00]Two\r\n");
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0].text, "One");
@@ -1265,43 +1009,16 @@ mod tests {
         assert!(synced.is_synced());
     }
 
-    // ── Cover URL helpers ─────────────────────────────────────────────────────
-
-    #[test]
-    fn cover_url_joins_uuid_segments_with_slashes() {
-        assert_eq!(
-            tidal_cover_url("7e58f111-5b1a-492a-aaf1-88fb55ce8a44"),
-            "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
-        );
-    }
-
-    #[test]
-    fn cover_url_uses_default_size() {
-        // tidal_cover_url delegates to the sized variant with DEFAULT_COVER_SIZE_PX.
-        let uuid = "abcd-ef01";
-        assert_eq!(tidal_cover_url(uuid), tidal_cover_url_sized(uuid, DEFAULT_COVER_SIZE_PX));
-    }
-
-    #[test]
-    fn cover_url_sized_embeds_requested_dimensions() {
-        assert_eq!(tidal_cover_url_sized("a-b-c", 750), "https://resources.tidal.com/images/a/b/c/750x750.jpg");
-    }
-
-    #[test]
-    fn cover_url_without_hyphens_is_passed_through() {
-        assert_eq!(tidal_cover_url_sized("singlesegment", 80), "https://resources.tidal.com/images/singlesegment/80x80.jpg");
-    }
-
     // ── PlaybackSourceKind ─────────────────────────────────────────────────
 
     #[test]
-    fn playback_source_kind_tidal_strings() {
-        assert_eq!(PlaybackSourceKind::Album.as_tidal_str(), "ALBUM");
-        assert_eq!(PlaybackSourceKind::Playlist.as_tidal_str(), "PLAYLIST");
-        assert_eq!(PlaybackSourceKind::Mix.as_tidal_str(), "MIX");
-        assert_eq!(PlaybackSourceKind::Artist.as_tidal_str(), "ARTIST");
-        assert_eq!(PlaybackSourceKind::TrackRadio.as_tidal_str(), "TRACK_RADIO");
-        assert_eq!(PlaybackSourceKind::Track.as_tidal_str(), "TRACK");
+    fn playback_source_kind_provider_strings() {
+        assert_eq!(PlaybackSourceKind::Album.as_str(), "ALBUM");
+        assert_eq!(PlaybackSourceKind::Playlist.as_str(), "PLAYLIST");
+        assert_eq!(PlaybackSourceKind::Mix.as_str(), "MIX");
+        assert_eq!(PlaybackSourceKind::Artist.as_str(), "ARTIST");
+        assert_eq!(PlaybackSourceKind::TrackRadio.as_str(), "TRACK_RADIO");
+        assert_eq!(PlaybackSourceKind::Track.as_str(), "TRACK");
     }
 
     // ── PlaybackSource constructors ──────────────────────────────────────

@@ -19,7 +19,7 @@ use cosmic::widget::button::Catalog;
 use crate::messages::Message;
 use std::sync::Arc;
 
-use crate::tidal::models::Track;
+use crate::music::models::Track;
 
 use super::fading_clip::FadingClip;
 
@@ -40,19 +40,19 @@ pub struct TrackRowOptions {
     /// The full track list for queue context when clicked.
     pub tracks: Arc<[Track]>,
     /// Container source for the track list (album / playlist / mix / etc.).
-    /// Threaded into `PlayTrackList` so TIDAL play attribution and the
-    /// now-playing bar label both see the right container.
-    pub source: Option<crate::tidal::models::PlaybackSource>,
+    /// Threaded into `PlayTrackList` so the now-playing bar label sees the
+    /// right container.
+    pub source: Option<crate::music::models::PlaybackSource>,
     /// Fallback icon name when cover art is not cached.
     pub fallback_icon: &'static str,
-    /// Whether to show the "Go to track radio" button. Default `true`.
-    /// Set to `false` in the track radio view to prevent recursive radios.
+    /// Whether to show the "Go to track radio" button. QQMusicApi does not
+    /// currently expose this route, so the default is `false`.
     pub show_radio_button: bool,
 }
 
 impl Default for TrackRowOptions {
     fn default() -> Self {
-        Self { tracks: Arc::from([]), source: None, fallback_icon: "audio-x-generic-symbolic", show_radio_button: true }
+        Self { tracks: Arc::from([]), source: None, fallback_icon: "audio-x-generic-symbolic", show_radio_button: false }
     }
 }
 
@@ -210,11 +210,11 @@ pub fn fading_header_title<'a>(title: &str) -> Element<'a, Message> {
 // Branded Title
 // =============================================================================
 
-/// Build the branded "MARÉ / Player" title block.
+/// Build the branded "GLACIER / Player" title block.
 ///
 /// `bottom_size` is the font size for "Player" — the same value the caller
 /// was already using (18 in the header row, 24 in the login view).
-/// "MARÉ" is rendered at ⅓ that size, horizontally centred on "Player",
+/// "GLACIER" is rendered at ⅓ that size, horizontally centred on "Player",
 /// and placed immediately above it with zero spacing so that Player's own
 /// baseline stays in exactly the same place it would occupy if it were the
 /// only child of the column.
@@ -224,14 +224,14 @@ pub fn fading_header_title<'a>(title: &str) -> Element<'a, Message> {
 /// with [`app_icon_element`] without going through [`branded_title`].
 pub static APP_ICON_SVG: &[u8] = include_bytes!("../../../resources/icon.svg");
 
-/// Build just the two-line "MARÉ / PLAYER" text column.
+/// Build just the two-line "GLACIER / PLAYER" text column.
 ///
-/// `big_size` controls the large "MARÉ" line; the small "PLAYER" line is
+/// `big_size` controls the large "GLACIER" line; the small "PLAYER" line is
 /// rendered at ⅓ that size (minimum 1).
 pub fn branded_text<'a>(big_size: u16) -> Element<'a, Message> {
     let small_size = (big_size / 3).max(1);
     widget::Row::new()
-        .push(text("MARÉ").size(big_size))
+        .push(text("GLACIER").size(big_size))
         .push(text("PLAYER").size(small_size))
         .spacing(6)
         .align_y(Alignment::Center)
@@ -246,7 +246,7 @@ pub fn app_icon_element<'a>(size: u16) -> Element<'a, Message> {
 
 /// Convenience: text + icon side-by-side (used by the login view).
 ///
-/// `big_size` is the font size for the large "MARÉ" line. The icon is sized to
+/// `big_size` is the font size for the large "GLACIER" line. The icon is sized to
 /// match the total text-block height (big + small lines).
 pub fn branded_title<'a>(big_size: u16) -> Element<'a, Message> {
     let small_size = (big_size / 3).max(1);

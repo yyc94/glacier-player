@@ -1,17 +1,17 @@
 # Authentication
-sign-in = TIDAL से साइन इन करें
+sign-in = QQ Music से साइन इन करें
 sign-in-prompt = अपना संगीत एक्सेस करने के लिए साइन इन करें
-sign-in-title = TIDAL में साइन इन करें
+sign-in-title = QQ Music में साइन इन करें
 sign-out = साइन आउट
 sign-in-button = साइन इन
 open-browser = ब्राउज़र खोलें
 cancel = रद्द करें
 verifying-auth = प्रमाणीकरण सत्यापित हो रहा है...
 verifying-auth-wait = कृपया प्रतीक्षा करें, हम आपके लॉगिन की पुष्टि कर रहे हैं।
-login-step-browser = 1. TIDAL लॉगिन पेज खोलें और साइन इन करें:
+login-step-browser = 1. QQ Music लॉगिन पेज खोलें और साइन इन करें:
 login-returns-here = साइन इन करते ही आप सीधे यहाँ लौट आएँगे — कुछ भी कॉपी नहीं करना है।
 login-step-paste = 2. इसके बाद ब्राउज़र एक ऐसे पेज पर पहुँचता है जो लोड नहीं होता। उसका पता कॉपी करके यहाँ पेस्ट करें:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = साइन इन पूरा करें
 login-retry = यह साइन-इन लिंक पहले ही इस्तेमाल हो चुका है या समाप्त हो गया — ब्राउज़र फिर से खोलें और नया पता कॉपी करें।
 preparing-login = लॉगिन तैयार हो रहा है...
@@ -105,7 +105,7 @@ artist-count = {$count} {$count ->
 }
 
 # Search
-search-placeholder = ट्रैक, एल्बम, कलाकार खोजें...
+search-placeholder = ट्रैक खोजें...
 
 # Debug
 debug-unoptimized = (अनऑप्टिमाइज़्ड)
@@ -157,7 +157,7 @@ refresh = रीफ़्रेश
 
 # Share
 share = साझा करें
-share-description = song.link URL बनाएँ और क्लिपबोर्ड पर कॉपी करें
+share-description = QQ Music URL बनाएँ और क्लिपबोर्ड पर कॉपी करें
 share-track = ट्रैक साझा करें: {$title}
 share-album = एल्बम साझा करें: {$title}
 

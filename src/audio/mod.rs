@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Audio analysis for Maré Player.
+//! Audio analysis for Glacier Player.
 //!
 //! Playback runs through the GStreamer engine (see [`crate::playback`]); this
 //! module only provides real-time spectrum analysis (via rustfft) for the

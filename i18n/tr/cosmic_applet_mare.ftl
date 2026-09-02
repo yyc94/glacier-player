@@ -1,17 +1,17 @@
 # Kimlik Doğrulama
-sign-in = TIDAL ile giriş yap
+sign-in = QQ Music ile giriş yap
 sign-in-prompt = Müziğine erişmek için giriş yap
-sign-in-title = TIDAL'a giriş yap
+sign-in-title = QQ Music'a giriş yap
 sign-out = Çıkış Yap
 sign-in-button = Giriş Yap
 open-browser = Tarayıcıyı Aç
 cancel = İptal
 verifying-auth = Kimlik doğrulanıyor...
 verifying-auth-wait = Girişinizi onaylarken lütfen bekleyin.
-login-step-browser = 1. TIDAL giriş sayfasını açın ve oturum açın:
+login-step-browser = 1. QQ Music giriş sayfasını açın ve oturum açın:
 login-returns-here = Oturum açtığınızda doğrudan buraya dönersiniz — kopyalanacak bir şey yok.
 login-step-paste = 2. Tarayıcı ardından yüklenemeyen bir sayfaya gider. O sayfanın adresini kopyalayıp buraya yapıştırın:
-login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-redirect-placeholder = http://127.0.0.1:8080/login/qrcode/qq
 login-finish = Girişi Tamamla
 login-retry = Bu oturum açma bağlantısı zaten kullanıldı veya süresi doldu — tarayıcıyı yeniden açıp yeni adresi kopyalayın.
 preparing-login = Giriş hazırlanıyor...
@@ -99,7 +99,7 @@ track-count = {$count} parça
 artist-count = {$count} sanatçı
 
 # Arama
-search-placeholder = Parça, albüm, sanatçı ara...
+search-placeholder = Parça ara...
 
 # Hata ayıklama
 debug-unoptimized = (optimize edilmemiş)
@@ -151,7 +151,7 @@ refresh = Yenile
 
 # Paylaşım
 share = Paylaş
-share-description = Bir song.link URL'si oluşturup panoya kopyala
+share-description = Bir QQ Music URL'si oluşturup panoya kopyala
 share-track = Parçayı Paylaş: {$title}
 share-album = Albümü Paylaş: {$title}
 
