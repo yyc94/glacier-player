@@ -1,6 +1,7 @@
 name := 'cosmic-applet-mare'
 standalone-name := 'mare-player'
 video-window-name := 'glacier-video-window'
+sidecar-name := 'glacier-qqmusic-api'
 appid := 'io.github.cosmic-applet-mare'
 features := env('FEATURES', '--all-features')
 rootdir := ''
@@ -18,6 +19,7 @@ appdata-dst := base-dir / 'share' / 'appdata' / appid + '.metainfo.xml'
 bin-dst := base-dir / 'bin' / name
 standalone-bin-dst := base-dir / 'bin' / standalone-name
 video-window-bin-dst := base-dir / 'bin' / video-window-name
+sidecar-bin-dst := base-dir / 'bin' / sidecar-name
 desktop-dst := base-dir / 'share' / 'applications' / appid + '.desktop'
 icon-dst := base-dir / 'share' / 'icons' / 'hicolor' / 'scalable' / 'apps' / appid + '.svg'
 icon-symbolic-dst := base-dir / 'share' / 'icons' / 'hicolor' / 'symbolic' / 'apps' / appid + '-symbolic.svg'
@@ -45,16 +47,20 @@ build-debug *args:
 build-release *args: (build-debug '--release' args)
     cargo build --release -p {{ video-window-name }} {{ args }}
 
+# Builds the self-contained QQMusicApi backend bundled with installations.
+build-sidecar:
+    scripts/build-qqmusic-sidecar.sh {{ cargo-target-dir / 'release' / sidecar-name }}
+
 # Compiles release profile with vendored dependencies
 build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
 
 # Compiles and packages a .deb (requires cargo-deb)
-build-deb: build-release
+build-deb: build-release build-sidecar
     command -v cargo-deb || cargo install cargo-deb
     cargo deb --no-build
 
 # Compiles and packages an .rpm (requires cargo-generate-rpm)
-build-rpm: build-release
+build-rpm: build-release build-sidecar
     command -v cargo-generate-rpm || cargo install cargo-generate-rpm
     strip -s {{ cargo-target-dir / 'release' / name }}
     strip -s {{ cargo-target-dir / 'release' / video-window-name }}
@@ -256,6 +262,7 @@ run-standalone-debug *args: build-debug-standalone
 _install profile:
     install -Dm0755 {{ cargo-target-dir / profile / name }} {{ bin-dst }}
     install -Dm0755 {{ cargo-target-dir / profile / video-window-name }} {{ video-window-bin-dst }}
+    install -Dm0755 {{ cargo-target-dir / 'release' / sidecar-name }} {{ sidecar-bin-dst }}
     install -Dm0644 resources/app.desktop {{ desktop-dst }}
     install -Dm0644 resources/app.metainfo.xml {{ appdata-dst }}
     install -Dm0644 resources/icon.svg {{ icon-dst }}
@@ -270,6 +277,7 @@ _install profile:
 [private]
 _install-standalone profile:
     install -Dm0755 {{ cargo-target-dir / profile / standalone-name }} {{ standalone-bin-dst }}
+    install -Dm0755 {{ cargo-target-dir / 'release' / sidecar-name }} {{ sidecar-bin-dst }}
     sed -e 's|^Exec=cosmic-applet-mare|Exec=mare-player|' \
         -e 's|^Comment=.*|Comment=Glacier Player — QQ Music for COSMIC|' \
         -e 's|^NoDisplay=true|NoDisplay=false|' \
@@ -299,20 +307,20 @@ _install-standalone profile:
     -update-desktop-database {{ base-dir }}/share/applications 2>/dev/null
 
 # Installs release build
-install: (_install 'release')
+install: build-sidecar (_install 'release')
 
 # Installs debug build (unstripped, unoptimised — useful for debugging)
-install-debug: (_install 'debug')
+install-debug: build-sidecar (_install 'debug')
 
 # Installs standalone release build
-install-standalone: (_install-standalone 'release')
+install-standalone: build-sidecar (_install-standalone 'release')
 
 # Installs standalone debug build
-install-standalone-debug: (_install-standalone 'debug')
+install-standalone-debug: build-sidecar (_install-standalone 'debug')
 
 # Uninstalls installed files
 uninstall:
-    rm -f {{ bin-dst }} {{ video-window-bin-dst }} {{ standalone-bin-dst }} {{ desktop-dst }} {{ icon-dst }} {{ icon-symbolic-dst }} {{ icon-scalable-symbolic-dst }}
+    rm -f {{ bin-dst }} {{ video-window-bin-dst }} {{ sidecar-bin-dst }} {{ standalone-bin-dst }} {{ desktop-dst }} {{ icon-dst }} {{ icon-symbolic-dst }} {{ icon-scalable-symbolic-dst }}
 
 # Check that all locale .ftl files have the same keys as the English reference
 i18n-check:

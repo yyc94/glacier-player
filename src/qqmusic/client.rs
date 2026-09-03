@@ -14,6 +14,7 @@ use super::models::{
     QqAlbumDetailData, QqAlbumSongsData, QqFavoriteAlbumsData, QqLyricsData, QqPlaylistDetailData, QqSearchData,
     QqSimilarSingersData, QqSingerAlbumsData, QqSingerInfoData, QqSingerSongsData, QqSongDetailData, QqSongListsData,
 };
+use super::sidecar::QqMusicSidecar;
 
 const SONG_URL_FALLBACK_CDN: &str = "https://isure.stream.qqmusic.qq.com/";
 
@@ -191,6 +192,7 @@ pub enum QqMusicError {
     Api { code: i32, message: String },
     InvalidResponse(String),
     NotAuthenticated,
+    Sidecar(String),
 }
 
 impl fmt::Display for QqMusicError {
@@ -201,6 +203,7 @@ impl fmt::Display for QqMusicError {
             Self::Api { code, message } => write!(f, "QQMusicApi error {code}: {message}"),
             Self::InvalidResponse(message) => write!(f, "invalid QQMusicApi response: {message}"),
             Self::NotAuthenticated => write!(f, "QQ Music authentication is required"),
+            Self::Sidecar(message) => write!(f, "QQ Music backend unavailable: {message}"),
         }
     }
 }
@@ -216,6 +219,7 @@ pub struct QqMusicClient {
     http: reqwest::Client,
     base_url: Url,
     credential: QqCredential,
+    sidecar: QqMusicSidecar,
 }
 
 impl QqMusicClient {
@@ -236,7 +240,8 @@ impl QqMusicClient {
             .user_agent("glacier-player/qqmusic")
             .build()
             .map_err(|error| QqMusicError::Http(error.to_string()))?;
-        Ok(Self { http, base_url, credential: QqCredential::default() })
+        let sidecar = QqMusicSidecar::new(&base_url);
+        Ok(Self { http, base_url, credential: QqCredential::default(), sidecar })
     }
 
     pub fn base_url(&self) -> &Url {
@@ -410,7 +415,21 @@ impl QqMusicClient {
         if let Some(cookie) = self.credential.cookie_header() {
             request = request.header(header::COOKIE, cookie);
         }
-        let response = request.send().await.map_err(|error| QqMusicError::Http(error.to_string()))?;
+        self.sidecar.ensure_ready(&self.http).await?;
+        let retry = request.try_clone();
+        let response = match request.send().await {
+            Ok(response) => response,
+            Err(error) if error.is_connect() && self.sidecar.is_managed() => {
+                self.sidecar.mark_unavailable().await;
+                self.sidecar.ensure_ready(&self.http).await?;
+                retry
+                    .ok_or_else(|| QqMusicError::Http(error.to_string()))?
+                    .send()
+                    .await
+                    .map_err(|retry_error| QqMusicError::Http(retry_error.to_string()))?
+            }
+            Err(error) => return Err(QqMusicError::Http(error.to_string())),
+        };
         let status = response.status();
         let body = response.text().await.map_err(|error| QqMusicError::Http(error.to_string()))?;
         if !status.is_success() {
@@ -649,5 +668,30 @@ mod tests {
         let credential = client.refresh_credential().await.unwrap();
         assert_eq!(credential.musickey, "refreshed");
         server.join().unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "requires GLACIER_QQMUSIC_API_BIN pointing to a built sidecar"]
+    async fn bundled_sidecar_starts_serves_qr_code_and_stops() {
+        assert!(std::env::var_os("GLACIER_QQMUSIC_API_BIN").is_some());
+
+        let http = reqwest::Client::new();
+        assert!(
+            http.get("http://127.0.0.1:8080/").send().await.is_err(),
+            "port 8080 must be free so the test starts its own sidecar"
+        );
+        let client = QqMusicClient::new("http://127.0.0.1:8080").unwrap();
+        let qr = client.request_qrcode("qq").await.unwrap();
+        assert!(!qr.identifier.is_empty());
+        assert!(!qr.data.is_empty() || !qr.img.is_empty());
+
+        drop(client);
+        for _ in 0..40 {
+            if http.get("http://127.0.0.1:8080/").send().await.is_err() {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        panic!("bundled sidecar was still running after the client was dropped");
     }
 }

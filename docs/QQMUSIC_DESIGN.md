@@ -10,11 +10,11 @@ the only catalog, authentication, lyrics, and stream provider.
 The playback engine remains local to glacier-player:
 
 ```text
-glacier-player (Rust/COSMIC)
+glacier-player (Rust/COSMIC, sidecar lifecycle owner)
         |
         | HTTP + JSON + QQ credential cookies
         v
-QQMusicApi (FastAPI Web service)
+glacier-qqmusic-api (bundled QQMusicApi executable)
         |
         v
 QQ Music
@@ -22,8 +22,12 @@ QQ Music
 
 ## QQMusicApi Contract
 
-The default Web service listens on `http://127.0.0.1:8080`. The base URL is a
-user setting so a remote service can be used without rebuilding the app.
+The bundled service listens on `http://127.0.0.1:8080`. Before the first API
+request, the Rust client probes that endpoint and starts the sibling
+`glacier-qqmusic-api` executable when needed. It reuses an already healthy
+service, retries once after a connection loss, and terminates a child process
+that it owns when the application exits. The base URL remains a user setting
+so a remote service can be used without rebuilding the app.
 
 Every response uses this envelope:
 
@@ -66,6 +70,10 @@ its Web contract and UI behavior have been tested.
 - response envelope validation and error normalization;
 - conversion from QQMusicApi JSON to provider-neutral domain models;
 - stream URL resolution and expiry metadata.
+
+`QqMusicSidecar` owns only the bundled process lifecycle, health checks, and
+its local device-data directory. Custom non-default endpoints bypass sidecar
+management.
 
 The client does not own the queue, GStreamer, COSMIC view state, or MPRIS.
 `AppModel` remains the owner of those concerns.
@@ -125,11 +133,13 @@ Provider features without a QQMusicApi equivalent are not emulated:
 3. Replace the legacy client ownership in `AppModel` and data handlers.
 4. Replace OAuth messages/views with QR login and polling.
 5. Remove legacy handlers, play reporter, dependencies, and copy.
-6. Run unit tests, offline HTTP contract tests, and both applet/standalone
+6. Bundle QQMusicApi as a self-contained sidecar and manage it on demand.
+7. Run unit tests, offline HTTP contract tests, and both applet/standalone
    builds.
 
-No WQM process, socket, command protocol, or Python runtime is part of this
-design.
+No WQM process, socket, command protocol, system Python installation, or
+user-managed daemon is part of this design. The frozen Python runtime is an
+implementation detail of the bundled `glacier-qqmusic-api` executable.
 
 ## Build Dependency Policy
 
@@ -142,8 +152,11 @@ runtime behavior.
 
 The repository pins Rust `1.96.0` in `rust-toolchain.toml`. This is required by
 the current remote dependency graph (notably `kstring` pulled by libcosmic).
-The QQMusicApi endpoint remains configurable at runtime; the default is
-`http://127.0.0.1:8080`.
+The sidecar build pins QQMusicApi commit `108617f`, PyInstaller `6.16.0`, and
+PyInstaller hooks `2026.7`. Release builds run natively on x86_64 and aarch64,
+include the upstream license, and attach the exact corresponding source
+archive. The QQMusicApi endpoint remains configurable at runtime; only the
+default `http://127.0.0.1:8080` endpoint is managed automatically.
 
 ## Implementation Status
 
@@ -153,6 +166,8 @@ track-search, playlist, album, singer, and favorites-read conversion, lyrics
 conversion, and direct stream URL resolution. `AppModel` now owns
 `QqMusicAppClient`; its existing queue, GStreamer pipeline, artwork cache,
 history, and MPRIS paths are reused.
+Official packages include the backend sidecar, so installed users do not need
+to provision or start QQMusicApi separately.
 The former service module, client dependency, redirect handler, and provider
 specific tests have been removed. The UI branding and login flow now use
 Glacier Player and QQ Music terminology throughout.

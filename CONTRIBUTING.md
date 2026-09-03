@@ -63,6 +63,7 @@ won't tell you that a popup looks wrong.
 | `src/cache/`          | Embedded database behind the view and image caches            |
 | `src/audio/`          | FFT spectrum analysis for the visualizer                      |
 | `mare-video-window/`  | Out-of-process video window (a separate workspace member)      |
+| `scripts/`            | Reproducible build for the bundled QQMusicApi sidecar           |
 | `i18n/`               | Fluent translations, one directory per locale                 |
 | `tests/`              | Integration tests                                             |
 | `fuzz/`               | cargo-fuzz targets (its own workspace)                        |
@@ -206,11 +207,12 @@ access token if you paste raw log lines — it appears in some requests.
 
 Report anything involving credentials, the keyring, or the QR login flow
 privately through GitHub's [security
-advisories](https://github.com/glima/glacier-player/security/advisories/new)
+advisories](https://github.com/yyc94/glacier-player/security/advisories/new)
 rather than a public issue.
 
-Never commit a token, a session dump, or a credential cookie. The QQMusicApi
-service owns provider secrets; they must not be copied into this repository.
+Never commit a token, a session dump, or a credential cookie. The bundled
+QQMusicApi process and Glacier keyring entry handle provider credentials; they
+must not be copied into this repository.
 
 ## License
 

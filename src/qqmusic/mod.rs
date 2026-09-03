@@ -5,6 +5,7 @@
 mod app_client;
 mod client;
 mod models;
+mod sidecar;
 
 pub use app_client::{MusicError, MusicResult, PlaybackUrl, QqLoginState, QqMusicAppClient};
 pub use client::{

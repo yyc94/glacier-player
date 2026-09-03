@@ -9,6 +9,8 @@
 A COSMIC™ desktop application for the QQ Music music streaming service.
 Stream audio, browse your library and artist catalog, and control playback
 with a real-time spectrum visualizer and full MPRIS integration.
+Official packages include and automatically manage the QQ Music backend; no
+separate Python service or container is required.
 
 Builds as either a **panel applet** (popup from the system panel) or a
 **standalone window** (regular application) — chosen at compile time
@@ -91,24 +93,24 @@ sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0
 sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav
 ```
 
-### QQMusicApi service
+### Bundled QQ Music backend
 
-Glacier Player is an HTTP client for the
-[QQMusicApi FastAPI Web service](https://github.com/L-1124/QQMusicApi). Start
-that service before launching the player. Its default address is
-`http://127.0.0.1:8080`; a different base URL can be selected in Settings.
+Glacier Player uses the
+[QQMusicApi](https://github.com/L-1124/QQMusicApi) Web API internally. Official
+DEB, RPM, and tar.gz packages bundle it as `glacier-qqmusic-api`; the player
+starts it on demand, stores its device data under the user's local data
+directory, and stops the process when it exits. Users do not install Python or
+start a daemon.
 
-```sh
-git clone https://github.com/L-1124/QQMusicApi.git
-cd QQMusicApi
-pip install -r web/requirements.txt
-python web/run.py
-```
+A custom remote endpoint can still be selected in Settings for development or
+self-hosting. The default `http://127.0.0.1:8080` endpoint is managed by the
+application.
 
 ### Build & Install
 
-Requires Rust 2024 edition (the repository pins 1.96.0) and
-[just](https://github.com/casey/just).
+Requires Rust 2024 edition (the repository pins 1.96.0),
+[just](https://github.com/casey/just), and
+[uv](https://docs.astral.sh/uv/) when building the bundled backend from source.
 
 ```sh
 git clone https://github.com/yyc94/glacier-player.git
@@ -155,7 +157,7 @@ settings:
 | Setting | Description | Default |
 |---|---|---|
 | Audio Quality | Low / High / Lossless / Hi-Res | Hi-Res |
-| QQ Music API URL | HTTP endpoint for QQMusicApi | `http://127.0.0.1:8080` |
+| QQ Music API URL | Advanced backend override; the default is managed automatically | `http://127.0.0.1:8080` |
 | Image Cache Limit | Max disk space for cached artwork | 200 MB |
 
 The playback volume is also persisted across restarts.
@@ -168,6 +170,7 @@ A [justfile](./justfile) provides all common workflows:
 |---|---|
 | `just` | Build applet with release profile (default) |
 | `just build-release` | Build applet with release profile |
+| `just build-sidecar` | Build the self-contained QQ Music backend |
 | `just build-debug` | Build applet with debug profile |
 | `just build-release-standalone` | Build standalone window app (release) |
 | `just build-debug-standalone` | Build standalone window app (debug) |
@@ -221,6 +224,8 @@ src/
 │   ├── visualizer  # Audio spectrum visualizer widget
 │   └── *.rs        # Panel, popup, albums, artists, playlists, tracks, track detail, mixes, search, explore, feed, history, lyrics, profiles, settings, auth, share, …
 └── *.rs            # App model, state, messages, config, disk caching, image cache, helpers, menu
+scripts/
+└── build-qqmusic-sidecar.sh # Reproducible build for the bundled backend
 ```
 
 ## Key Dependencies
@@ -228,7 +233,7 @@ src/
 | Crate | Purpose |
 |---|---|
 | [libcosmic](https://github.com/pop-os/libcosmic) | COSMIC application framework |
-| [QQMusicApi](https://github.com/L-1124/QQMusicApi) | QQ Music FastAPI Web service |
+| [QQMusicApi](https://github.com/L-1124/QQMusicApi) | Bundled QQ Music API backend |
 | [gstreamer-rs](https://gitlab.freedesktop.org/gstreamer/gstreamer-rs) | Audio playback engine (decode, stream, output, volume, seek, gapless) |
 | [rustfft](https://crates.io/crates/rustfft) | FFT for spectrum analysis |
 | [zbus](https://crates.io/crates/zbus) | D-Bus / MPRIS2 interface |
@@ -249,7 +254,9 @@ and the commit-message and dependency-licence rules.
 
 ## License
 
-[GPL-3.0-only](LICENSE)
+Glacier Player is [GPL-3.0-only](LICENSE). The bundled QQMusicApi backend is
+[GPL-3.0-or-later](resources/QQMusicApi.LICENSE); release assets include the
+exact corresponding source archive.
 
 ## Disclaimer
 

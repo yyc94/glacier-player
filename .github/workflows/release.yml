@@ -15,7 +15,36 @@ env:
   CARGO_NET_RETRY: "10"
 
 jobs:
+  sidecar:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.4"
+
+      - name: Build bundled QQ Music backend
+        run: scripts/build-qqmusic-sidecar.sh target/release/glacier-qqmusic-api
+
+      - name: Upload sidecar
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qqmusic-sidecar-${{ matrix.target }}
+          path: target/release/glacier-qqmusic-api
+
   build:
+    needs: sidecar
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +76,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download bundled QQ Music backend
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: qqmusic-sidecar-${{ matrix.target }}
+          path: target/release
+
+      - run: chmod 0755 target/release/glacier-qqmusic-api
 
       - name: Install system dependencies
         run: |
@@ -104,6 +141,7 @@ jobs:
           DIR=${{ matrix.pkg_name }}
           mkdir -p "$DIR"
           cp target/release/${{ matrix.binary }} "$DIR/"
+          cp target/release/glacier-qqmusic-api "$DIR/"
           # Applet bundles the out-of-process video-window companion too.
           if [ "${{ matrix.variant }}" = "applet" ]; then
             cp target/release/glacier-video-window "$DIR/"
@@ -112,6 +150,7 @@ jobs:
           cp resources/app.metainfo.xml "$DIR/${{ env.APP_ID }}.metainfo.xml"
           cp resources/icon.svg "$DIR/${{ env.APP_ID }}.svg"
           cp LICENSE "$DIR/"
+          cp resources/QQMusicApi.LICENSE "$DIR/"
           strip -s "$DIR/${{ matrix.binary }}"
           tar -czvf "${{ matrix.pkg_name }}-${ARCH}.tar.gz" "$DIR"
 
@@ -169,6 +208,9 @@ jobs:
         id: hashes
         run: |
           cd release
+          curl -sSfL \
+            https://github.com/L-1124/QQMusicApi/archive/108617ffe80abefec6358717b9f4d3677550db10.tar.gz \
+            -o QQMusicApi-108617f-source.tar.gz
           shasum -a 256 *.deb *.rpm *.tar.gz > SHA256SUMS
           # Expose base64(SHA256SUMS) for the SLSA provenance generator job.
           echo "hashes=$(base64 -w0 SHA256SUMS)" >> "$GITHUB_OUTPUT"

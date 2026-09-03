@@ -552,6 +552,13 @@ impl cosmic::Application for AppModel {
                 }
                 Err(e) => tracing::info!("update() received: VideoUrlReceived(Err: {e})"),
             },
+            Message::QrCodeReady(result) => match result {
+                Ok(_) => tracing::info!("update() received: QrCodeReady(Ok)"),
+                Err(error) => tracing::info!("update() received: QrCodeReady(Err: {error})"),
+            },
+            Message::MprisServiceStarted(result) => {
+                tracing::info!("update() received: MprisServiceStarted({})", if result.is_ok() { "Ok" } else { "Err" })
+            }
             // Log important messages at info level
             msg => tracing::info!("update() received: {:?}", msg),
         }
