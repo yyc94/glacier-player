@@ -7,7 +7,7 @@
 
 use base64::{Engine, engine::general_purpose};
 
-use crate::auth::{AuthState, QrLoginRequest, UserProfile};
+use crate::auth::{AuthState, QrLoginProvider, QrLoginRequest, UserProfile};
 use crate::config::AudioQuality;
 use crate::music::models::{
     Album, Artist, ExplorePage, FeedActivity, Mix, Playlist, SearchResults, Track, TrackCredits, TrackLyrics, parse_lrc,
@@ -77,7 +77,7 @@ pub enum QqLoginState {
 pub struct QqMusicAppClient {
     api: QqMusicClient,
     auth_state: AuthState,
-    qr_login_type: Option<String>,
+    qr_login_provider: Option<QrLoginProvider>,
     qr_identifier: Option<String>,
     audio_quality: AudioQuality,
 }
@@ -100,7 +100,7 @@ impl QqMusicAppClient {
         Self {
             api,
             auth_state: AuthState::NotAuthenticated,
-            qr_login_type: None,
+            qr_login_provider: None,
             qr_identifier: None,
             audio_quality: AudioQuality::default(),
         }
@@ -150,12 +150,11 @@ impl QqMusicAppClient {
 
     /// Request a QQ login QR code. The image and identifier stay in this
     /// client while the request result transitions the view into QR polling.
-    pub async fn start_login(&mut self) -> MusicResult<QrLoginRequest> {
-        let login_type = "qq";
-        let qr = self.api.request_qrcode(login_type).await?;
-        self.qr_login_type = Some(login_type.to_string());
+    pub async fn start_login(&mut self, provider: QrLoginProvider) -> MusicResult<QrLoginRequest> {
+        let qr = self.api.request_qrcode(provider.api_value()).await?;
+        self.qr_login_provider = Some(provider);
         self.qr_identifier = Some(qr.identifier.clone());
-        Ok(QrLoginRequest { image_data_url: normalize_qr_image(&qr.img, &qr.mimetype, &qr.data) })
+        Ok(QrLoginRequest { provider, image_data_url: normalize_qr_image(&qr.img, &qr.mimetype, &qr.data) })
     }
 
     pub fn qr_identifier(&self) -> Option<&str> {
@@ -164,9 +163,9 @@ impl QqMusicAppClient {
 
     /// Poll a QR login and update the app authentication state on success.
     pub async fn poll_qr_login(&mut self) -> MusicResult<QqLoginState> {
-        let login_type = self.qr_login_type.clone().ok_or(QqMusicError::InvalidResponse("QR login has not started".into()))?;
+        let provider = self.qr_login_provider.ok_or(QqMusicError::InvalidResponse("QR login has not started".into()))?;
         let identifier = self.qr_identifier.clone().ok_or(QqMusicError::InvalidResponse("QR identifier is missing".into()))?;
-        let status = self.api.check_qrcode(&login_type, &identifier).await?;
+        let status = self.api.check_qrcode(provider.api_value(), &identifier).await?;
         let state = qr_state(&status);
         if state == QqLoginState::Done {
             if let Some(credential) = status.credential {
@@ -176,10 +175,10 @@ impl QqMusicAppClient {
             } else {
                 return Err(QqMusicError::InvalidResponse("QR login completed without credential".into()));
             }
-            self.qr_login_type = None;
+            self.qr_login_provider = None;
             self.qr_identifier = None;
         } else if matches!(state, QqLoginState::Expired | QqLoginState::Refused | QqLoginState::Failed) {
-            self.qr_login_type = None;
+            self.qr_login_provider = None;
             self.qr_identifier = None;
         }
         Ok(state)
@@ -187,7 +186,7 @@ impl QqMusicAppClient {
 
     /// Forget an in-progress QR login.
     pub fn cancel_qr_login(&mut self) {
-        self.qr_login_type = None;
+        self.qr_login_provider = None;
         self.qr_identifier = None;
     }
 

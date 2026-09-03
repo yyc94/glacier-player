@@ -11,7 +11,7 @@ use cosmic::iced::window::Id;
 use cosmic::surface;
 use tokio::sync::Mutex;
 
-use crate::auth::QrLoginRequest;
+use crate::auth::{QrLoginProvider, QrLoginRequest};
 use crate::config::{AudioQuality, Config, LogLevel};
 use crate::music::models::{
     Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
@@ -47,12 +47,12 @@ pub enum Message {
     UpdateConfig(Config),
 
     // Authentication
-    /// Start the login flow
-    StartLogin,
+    /// Start a QR login flow with the selected account provider.
+    StartLogin(QrLoginProvider),
     /// Cancel the active QR login and return to the login view.
     CancelLogin,
     /// The QR login request is ready (or the flow failed to start)
-    QrCodeReady(Result<QrLoginRequest, String>),
+    QrCodeReady(QrLoginProvider, Result<QrLoginRequest, String>),
     /// Login flow completed
     LoginComplete(Result<(), String>),
     /// Poll the active QQ Music QR login.

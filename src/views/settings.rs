@@ -9,7 +9,7 @@ use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
-use crate::auth::AuthState;
+use crate::auth::{AuthState, QrLoginProvider};
 use crate::config::{AudioQuality, LogLevel};
 use crate::fl;
 use crate::messages::Message;
@@ -164,7 +164,8 @@ impl AppModel {
             widget::Column::new()
                 .push(text(fl!("account")).size(14))
                 .push(text(fl!("not-signed-in")).size(12))
-                .push(button::suggested(fl!("sign-in-button")).on_press(Message::StartLogin).width(Length::Fill))
+                .push(button::suggested("QQ Music").on_press(Message::StartLogin(QrLoginProvider::Qq)).width(Length::Fill))
+                .push(button::standard("WeChat").on_press(Message::StartLogin(QrLoginProvider::WeChat)).width(Length::Fill))
                 .spacing(12)
                 .into()
         };

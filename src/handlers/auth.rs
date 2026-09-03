@@ -6,7 +6,7 @@
 
 use cosmic::prelude::*;
 
-use crate::auth::QrLoginRequest;
+use crate::auth::{QrLoginProvider, QrLoginRequest};
 use crate::messages::Message;
 use crate::qqmusic::QqLoginState;
 use crate::state::{AppModel, ViewState};
@@ -32,7 +32,7 @@ impl AppModel {
     }
 
     /// Start the QQ Music QR login flow.
-    pub(crate) fn start_login_flow(&self) -> Task<cosmic::Action<Message>> {
+    pub(crate) fn start_login_flow(&self, provider: QrLoginProvider) -> Task<cosmic::Action<Message>> {
         let client = self.music_client.clone();
         let audio_quality = self.config.audio_quality;
         Task::perform(
@@ -40,9 +40,9 @@ impl AppModel {
                 let mut client = client.lock().await;
                 // Apply configured audio quality before starting the login
                 client.set_audio_quality(audio_quality).await;
-                client.start_login().await.map_err(|e| e.to_string())
+                client.start_login(provider).await.map_err(|e| e.to_string())
             },
-            |result| cosmic::Action::App(Message::QrCodeReady(result)),
+            move |result| cosmic::Action::App(Message::QrCodeReady(provider, result)),
         )
     }
 }
@@ -53,10 +53,12 @@ impl AppModel {
 
 impl AppModel {
     /// Handle start login - requests a QQ Music QR code.
-    pub fn handle_start_login(&mut self) -> Task<cosmic::Action<Message>> {
+    pub fn handle_start_login(&mut self, provider: QrLoginProvider) -> Task<cosmic::Action<Message>> {
         self.error_message = None;
         self.is_loading = true;
-        self.start_login_flow()
+        self.qr_login_request = Some(QrLoginRequest::pending(provider));
+        self.view_state = ViewState::AwaitingQr;
+        self.start_login_flow(provider)
     }
 
     /// Cancel an active QR login and ignore any poll already in flight.
@@ -74,7 +76,14 @@ impl AppModel {
     }
 
     /// Handle the QR image request completing.
-    pub fn handle_qr_code_ready(&mut self, result: Result<QrLoginRequest, String>) -> Task<cosmic::Action<Message>> {
+    pub fn handle_qr_code_ready(
+        &mut self,
+        provider: QrLoginProvider,
+        result: Result<QrLoginRequest, String>,
+    ) -> Task<cosmic::Action<Message>> {
+        if self.qr_login_request.as_ref().map(|request| request.provider) != Some(provider) {
+            return Task::none();
+        }
         self.is_loading = false;
         match result {
             Ok(request) => {
@@ -91,6 +100,7 @@ impl AppModel {
             }
             Err(e) => {
                 tracing::error!("Login failed: {}", e);
+                self.qr_login_request = None;
                 self.error_message = Some(format!("Login failed: {}", e));
                 self.view_state = ViewState::Login;
                 Task::none()
@@ -250,8 +260,7 @@ impl AppModel {
                 let mut client = client.lock().await;
                 client.logout().await;
             },
-            |_| cosmic::Action::App(Message::ShowMain),
+            |_| cosmic::Action::App(Message::CancelLogin),
         )
-        .chain(Task::done(cosmic::Action::App(Message::StartLogin)))
     }
 }

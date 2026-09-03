@@ -2,11 +2,55 @@
 
 //! Authentication state shared by the QQ Music QR login flow and the views.
 
+/// A QR login provider supported by QQMusicApi's Web contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QrLoginProvider {
+    /// Authenticate with a QQ account.
+    Qq,
+    /// Authenticate with a WeChat account.
+    WeChat,
+}
+
+impl QrLoginProvider {
+    /// Path segment accepted by `/login/qrcode/{login_type}`.
+    pub(crate) const fn api_value(self) -> &'static str {
+        match self {
+            Self::Qq => "qq",
+            Self::WeChat => "wx",
+        }
+    }
+
+    /// User-facing name of the application that scans the QR code.
+    pub(crate) const fn display_name(self) -> &'static str {
+        match self {
+            Self::Qq => "QQ Music",
+            Self::WeChat => "WeChat",
+        }
+    }
+
+    /// Application used to scan this provider's QR code.
+    pub(crate) const fn scanner_name(self) -> &'static str {
+        match self {
+            Self::Qq => "QQ",
+            Self::WeChat => "WeChat",
+        }
+    }
+}
+
 /// A pending QQ Music QR login request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QrLoginRequest {
+    /// Account provider selected by the user.
+    pub provider: QrLoginProvider,
     /// Data URL containing the QR image returned by QQMusicApi.
     pub image_data_url: String,
+}
+
+impl QrLoginRequest {
+    /// Placeholder used while the selected provider's QR image is loading.
+    pub(crate) fn pending(provider: QrLoginProvider) -> Self {
+        Self { provider, image_data_url: String::new() }
+    }
 }
 
 /// Authentication state

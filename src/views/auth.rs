@@ -9,6 +9,7 @@ use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, container, text};
 
+use crate::auth::QrLoginProvider;
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
@@ -21,7 +22,8 @@ impl AppModel {
             .push(branded_title(24))
             .push(text(fl!("sign-in-prompt")).size(14))
             .push(widget::space::vertical().height(20))
-            .push(button::standard(fl!("sign-in")).on_press(Message::StartLogin).width(Length::Fill))
+            .push(button::suggested("QQ Music").on_press(Message::StartLogin(QrLoginProvider::Qq)).width(Length::Fill))
+            .push(button::standard("WeChat").on_press(Message::StartLogin(QrLoginProvider::WeChat)).width(Length::Fill))
             .spacing(12)
             .align_x(Alignment::Center)
             .padding(20)
@@ -32,11 +34,12 @@ impl AppModel {
 
     /// Render the view shown while QQ Music QR authentication is in progress.
     pub fn view_awaiting_qr(&self) -> Element<'_, Message> {
+        let provider = self.qr_login_request.as_ref().map_or(QrLoginProvider::Qq, |request| request.provider);
         let qr_image = self.qr_login_request.as_ref().and_then(|request| qr_handle(&request.image_data_url));
         let content = if let Some(handle) = qr_image {
             let mut col = widget::Column::new()
-                .push(text("Sign in to QQ Music").size(20))
-                .push(text("Scan this QR code in the QQ Music app").size(12))
+                .push(text(format!("Sign in with {}", provider.display_name())).size(20))
+                .push(text(format!("Scan this QR code with {}", provider.scanner_name())).size(12))
                 .spacing(10)
                 .align_x(Alignment::Center);
             col = col.push(widget::image(handle).width(Length::Fixed(220.0)).height(Length::Fixed(220.0)));
@@ -46,7 +49,7 @@ impl AppModel {
         } else if self.is_loading {
             // Waiting for the QR request to complete
             widget::Column::new()
-                .push(text(fl!("sign-in-title")).size(20))
+                .push(text(format!("Preparing {} login", provider.display_name())).size(20))
                 .push(widget::space::vertical().height(20))
                 .push(text("⏳").size(32))
                 .push(widget::space::vertical().height(10))

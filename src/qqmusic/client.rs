@@ -681,9 +681,12 @@ mod tests {
             "port 8080 must be free so the test starts its own sidecar"
         );
         let client = QqMusicClient::new("http://127.0.0.1:8080").unwrap();
-        let qr = client.request_qrcode("qq").await.unwrap();
-        assert!(!qr.identifier.is_empty());
-        assert!(!qr.data.is_empty() || !qr.img.is_empty());
+        for login_type in ["qq", "wx"] {
+            let qr = client.request_qrcode(login_type).await.unwrap();
+            assert_eq!(qr.qr_type, login_type);
+            assert!(!qr.identifier.is_empty());
+            assert!(!qr.data.is_empty() || !qr.img.is_empty());
+        }
 
         drop(client);
         for _ in 0..40 {

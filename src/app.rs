@@ -552,9 +552,9 @@ impl cosmic::Application for AppModel {
                 }
                 Err(e) => tracing::info!("update() received: VideoUrlReceived(Err: {e})"),
             },
-            Message::QrCodeReady(result) => match result {
-                Ok(_) => tracing::info!("update() received: QrCodeReady(Ok)"),
-                Err(error) => tracing::info!("update() received: QrCodeReady(Err: {error})"),
+            Message::QrCodeReady(provider, result) => match result {
+                Ok(_) => tracing::info!(?provider, "update() received: QrCodeReady(Ok)"),
+                Err(error) => tracing::info!(?provider, "update() received: QrCodeReady(Err: {error})"),
             },
             Message::MprisServiceStarted(result) => {
                 tracing::info!("update() received: MprisServiceStarted({})", if result.is_ok() { "Ok" } else { "Err" })
@@ -630,9 +630,9 @@ impl cosmic::Application for AppModel {
             Message::NavigateBack => self.handle_navigate_back(),
 
             // Auth handlers
-            Message::StartLogin => self.handle_start_login(),
+            Message::StartLogin(provider) => self.handle_start_login(provider),
             Message::CancelLogin => self.handle_cancel_login(),
-            Message::QrCodeReady(result) => self.handle_qr_code_ready(result),
+            Message::QrCodeReady(provider, result) => self.handle_qr_code_ready(provider, result),
             Message::LoginComplete(result) => self.handle_login_complete(result),
             Message::QqQrPoll => self.handle_qq_qr_poll(),
             Message::QqQrStatus(result) => self.handle_qq_qr_status(result),

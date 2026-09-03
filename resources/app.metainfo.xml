@@ -17,7 +17,7 @@
       <li>Library — playlists, albums, favorites, and local history</li>
       <li>Track search, artist pages, and time-synced lyrics</li>
       <li>MPRIS integration — media keys, playerctl, KDE Connect</li>
-      <li>Secure QR login with system keyring storage</li>
+      <li>Secure QQ or WeChat QR login with system keyring storage</li>
       <li>Runs as a COSMIC panel applet or a standalone window</li>
     </ul>
   </description>
