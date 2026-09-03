@@ -378,7 +378,19 @@ impl QqMusicClient {
     }
 
     pub async fn check_login_expired(&self) -> QqResult<bool> {
-        self.get_json("login/check_expired", []).await
+        let request = self.http.request(Method::GET, self.url("login/check_expired")?);
+        let envelope: ApiEnvelope<bool> = self.send_envelope(request).await?;
+
+        // QQMusicApi's Web executor currently represents bool results through
+        // the response code: true becomes code 0 with no data, while false
+        // becomes code -1. Also accept a regular boolean payload so this stays
+        // compatible if the upstream route is corrected later.
+        match (envelope.code, envelope.data) {
+            (0, Some(expired)) => Ok(expired),
+            (0, None) => Ok(true),
+            (-1, _) => Ok(false),
+            (code, _) => Err(QqMusicError::Api { code, message: envelope.msg }),
+        }
     }
 
     pub async fn request_qrcode(&self, login_type: &str) -> QqResult<QqQrCodeData> {
@@ -408,7 +420,18 @@ impl QqMusicClient {
         self.send(request).await
     }
 
-    async fn send<T>(&self, mut request: RequestBuilder) -> QqResult<T>
+    async fn send<T>(&self, request: RequestBuilder) -> QqResult<T>
+    where
+        T: DeserializeOwned,
+    {
+        let envelope = self.send_envelope(request).await?;
+        if envelope.code != 0 {
+            return Err(QqMusicError::Api { code: envelope.code, message: envelope.msg });
+        }
+        envelope.data.ok_or_else(|| QqMusicError::InvalidResponse("successful response has no data".to_string()))
+    }
+
+    async fn send_envelope<T>(&self, mut request: RequestBuilder) -> QqResult<ApiEnvelope<T>>
     where
         T: DeserializeOwned,
     {
@@ -435,12 +458,7 @@ impl QqMusicClient {
         if !status.is_success() {
             return Err(QqMusicError::Http(format!("HTTP {status}: {}", truncate(&body))));
         }
-        let envelope: ApiEnvelope<T> = serde_json::from_str(&body)
-            .map_err(|error| QqMusicError::InvalidResponse(format!("{error}: {}", truncate(&body))))?;
-        if envelope.code != 0 {
-            return Err(QqMusicError::Api { code: envelope.code, message: envelope.msg });
-        }
-        envelope.data.ok_or_else(|| QqMusicError::InvalidResponse("successful response has no data".to_string()))
+        serde_json::from_str(&body).map_err(|error| QqMusicError::InvalidResponse(format!("{error}: {}", truncate(&body))))
     }
 
     fn require_auth(&self) -> QqResult<()> {
@@ -667,6 +685,41 @@ mod tests {
         client.set_credential(QqCredential { musicid: "123".into(), musickey: "secret".into(), ..Default::default() });
         let credential = client.refresh_credential().await.unwrap();
         assert_eq!(credential.musickey, "refreshed");
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn check_login_expired_decodes_qqmusicapi_boolean_contract() {
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let bodies = [
+                r#"{"code":-1,"msg":"operation failed","data":null}"#,
+                r#"{"code":0,"msg":"ok","data":null}"#,
+                r#"{"code":0,"msg":"ok","data":false}"#,
+            ];
+            for body in bodies {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0u8; 4096];
+                let length = stream.read(&mut request).unwrap();
+                let request = String::from_utf8_lossy(&request[..length]);
+                assert!(request.starts_with("GET /login/check_expired HTTP/1.1"));
+                assert!(request.to_ascii_lowercase().contains("cookie: musicid=123; musickey=secret"));
+
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream.write_all(response.as_bytes()).unwrap();
+            }
+        });
+
+        let mut client = QqMusicClient::new(&format!("http://{address}")).unwrap();
+        client.set_credential(QqCredential { musicid: "123".into(), musickey: "secret".into(), ..Default::default() });
+        assert!(!client.check_login_expired().await.unwrap());
+        assert!(client.check_login_expired().await.unwrap());
+        assert!(!client.check_login_expired().await.unwrap());
         server.join().unwrap();
     }
 

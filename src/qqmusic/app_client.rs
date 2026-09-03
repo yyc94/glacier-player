@@ -141,9 +141,14 @@ impl QqMusicAppClient {
             return Ok(false);
         }
         self.api.set_credential(credential.clone());
-        let credential = if self.api.check_login_expired().await? { self.api.refresh_credential().await? } else { credential };
-        self.api.set_credential(credential.clone());
-        self.persist_credential(&credential)?;
+        let credential = if self.api.check_login_expired().await? {
+            let refreshed = self.api.refresh_credential().await?;
+            self.api.set_credential(refreshed.clone());
+            self.persist_credential(&refreshed)?;
+            refreshed
+        } else {
+            credential
+        };
         self.set_authenticated_profile(&credential);
         Ok(true)
     }
