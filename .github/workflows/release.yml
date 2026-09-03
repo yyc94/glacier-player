@@ -10,21 +10,12 @@ permissions: read-all
 
 env:
   CARGO_TERM_COLOR: always
-  APP_ID: io.github.cosmic-applet-mare
   # Retry transient crates.io/registry download failures instead of failing.
   CARGO_NET_RETRY: "10"
 
 jobs:
   sidecar:
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,7 +31,7 @@ jobs:
       - name: Upload sidecar
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: qqmusic-sidecar-${{ matrix.target }}
+          name: qqmusic-sidecar-amd64
           path: target/release/glacier-qqmusic-api
 
   build:
@@ -48,31 +39,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-        variant:
-          - applet
-          - standalone
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
           - variant: applet
             binary: cosmic-applet-mare
-            pkg_name: cosmic-applet-mare
             cargo_args: ""
             deb_variant: ""
-            rpm_variant: ""
           - variant: standalone
             binary: mare-player
-            pkg_name: mare-player
             cargo_args: "--no-default-features --features wgpu"
             deb_variant: "--variant=standalone"
-            rpm_variant: "--variant=standalone"
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,7 +57,7 @@ jobs:
       - name: Download bundled QQ Music backend
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: qqmusic-sidecar-${{ matrix.target }}
+          name: qqmusic-sidecar-amd64
           path: target/release
 
       - run: chmod 0755 target/release/glacier-qqmusic-api
@@ -103,16 +80,10 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
-      - name: Install packaging tools
+      - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@75b4bfae1b2c753a6806bbce6e6cb89b602de33c # v1.22.0
 
-      # `just` and `cargo-deb` ship prebuilt binaries that binstall can fetch.
-      # `cargo-generate-rpm` does not advertise binstall metadata, so binstall
-      # falls back to a bare `cargo install` (no `--locked`) that breaks on
-      # unpinned transitive deps. Install it from source with `--locked` so it
-      # uses the crate's own tested Cargo.lock.
-      - run: cargo binstall --no-confirm just cargo-deb
-      - run: cargo install cargo-generate-rpm --locked
+      - run: cargo binstall --no-confirm cargo-deb
 
       - name: Build release binary
         run: |
@@ -123,49 +94,23 @@ jobs:
             cp target/release/cosmic-applet-mare target/release/${{ matrix.binary }}
           else
             # Applet: also build the out-of-process video-window companion
-            # (referenced by the applet .deb/.rpm assets and bundled below).
+            # referenced by the applet DEB assets.
             cargo build --release -p glacier-video-window
           fi
 
       - name: Build .deb package
         run: cargo deb --no-build ${{ matrix.deb_variant }}
 
-      - name: Build .rpm package
-        run: |
-          strip -s target/release/${{ matrix.binary }}
-          cargo generate-rpm ${{ matrix.rpm_variant }}
-
-      - name: Prepare tarball
-        run: |
-          ARCH=$(uname -m)
-          DIR=${{ matrix.pkg_name }}
-          mkdir -p "$DIR"
-          cp target/release/${{ matrix.binary }} "$DIR/"
-          cp target/release/glacier-qqmusic-api "$DIR/"
-          # Applet bundles the out-of-process video-window companion too.
-          if [ "${{ matrix.variant }}" = "applet" ]; then
-            cp target/release/glacier-video-window "$DIR/"
-          fi
-          cp resources/app.desktop "$DIR/${{ env.APP_ID }}.desktop"
-          cp resources/app.metainfo.xml "$DIR/${{ env.APP_ID }}.metainfo.xml"
-          cp resources/icon.svg "$DIR/${{ env.APP_ID }}.svg"
-          cp LICENSE "$DIR/"
-          cp resources/QQMusicApi.LICENSE "$DIR/"
-          strip -s "$DIR/${{ matrix.binary }}"
-          tar -czvf "${{ matrix.pkg_name }}-${ARCH}.tar.gz" "$DIR"
-
       - name: Collect packages
         run: |
           mkdir -p dist
           cp target/debian/*.deb dist/
-          cp target/generate-rpm/*.rpm dist/
-          cp ${{ matrix.pkg_name }}-*.tar.gz dist/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: packages-${{ matrix.variant }}-${{ matrix.target }}
-          path: dist/*
+          name: packages-${{ matrix.variant }}-amd64
+          path: dist/*.deb
 
   release:
     runs-on: ubuntu-latest
@@ -211,7 +156,7 @@ jobs:
           curl -sSfL \
             https://github.com/L-1124/QQMusicApi/archive/108617ffe80abefec6358717b9f4d3677550db10.tar.gz \
             -o QQMusicApi-108617f-source.tar.gz
-          shasum -a 256 *.deb *.rpm *.tar.gz > SHA256SUMS
+          shasum -a 256 *.deb *.tar.gz > SHA256SUMS
           # Expose base64(SHA256SUMS) for the SLSA provenance generator job.
           echo "hashes=$(base64 -w0 SHA256SUMS)" >> "$GITHUB_OUTPUT"
 
@@ -221,7 +166,6 @@ jobs:
         with:
           subject-path: |
             release/*.deb
-            release/*.rpm
             release/*.tar.gz
             release/SHA256SUMS
 
@@ -263,7 +207,6 @@ jobs:
           body_path: RELEASE_NOTES.md
           files: |
             release/*.deb
-            release/*.rpm
             release/*.tar.gz
             release/SHA256SUMS
             release/provenance.sigstore

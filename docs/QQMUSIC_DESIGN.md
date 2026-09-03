@@ -153,10 +153,10 @@ runtime behavior.
 The repository pins Rust `1.96.0` in `rust-toolchain.toml`. This is required by
 the current remote dependency graph (notably `kstring` pulled by libcosmic).
 The sidecar build pins QQMusicApi commit `108617f`, PyInstaller `6.16.0`, and
-PyInstaller hooks `2026.7`. Release builds run natively on x86_64 and aarch64,
-include the upstream license, and attach the exact corresponding source
-archive. The QQMusicApi endpoint remains configurable at runtime; only the
-default `http://127.0.0.1:8080` endpoint is managed automatically.
+PyInstaller hooks `2026.7`. Releases provide amd64 DEB packages, include the
+upstream license, and attach the exact corresponding source archive. The
+QQMusicApi endpoint remains configurable at runtime; only the default
+`http://127.0.0.1:8080` endpoint is managed automatically.
 
 ## Implementation Status
 

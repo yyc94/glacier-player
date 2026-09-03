@@ -50,7 +50,7 @@ via the `panel-applet` feature flag (enabled by default).
 - **Sharing** — Open QQ Music song and album pages or copy them to clipboard
 - **Dual Mode** — Builds as a COSMIC panel applet *or* a standalone
   windowed application (`--no-default-features`)
-- **Secure Authentication** — QR sign-in, with credentials stored in
+- **Secure Authentication** — QQ or WeChat QR sign-in, with credentials stored in
   the system keyring
 - **Persistent Sessions** — Credential refresh across reboots when supported
 - **Disk Caching** — Artwork is cached on disk with a configurable size
@@ -97,7 +97,7 @@ sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav
 
 Glacier Player uses the
 [QQMusicApi](https://github.com/L-1124/QQMusicApi) Web API internally. Official
-DEB, RPM, and tar.gz packages bundle it as `glacier-qqmusic-api`; the player
+Official amd64 DEB packages bundle it as `glacier-qqmusic-api`; the player
 starts it on demand, stores its device data under the user's local data
 directory, and stops the process when it exits. Users do not install Python or
 start a daemon.

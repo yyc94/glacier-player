@@ -59,13 +59,6 @@ build-deb: build-release build-sidecar
     command -v cargo-deb || cargo install cargo-deb
     cargo deb --no-build
 
-# Compiles and packages an .rpm (requires cargo-generate-rpm)
-build-rpm: build-release build-sidecar
-    command -v cargo-generate-rpm || cargo install cargo-generate-rpm
-    strip -s {{ cargo-target-dir / 'release' / name }}
-    strip -s {{ cargo-target-dir / 'release' / video-window-name }}
-    cargo generate-rpm
-
 # Compiles standalone (no panel applet) with debug profile, renames binary
 # The standalone top-level window can use the GPU, so it keeps the `wgpu`
 # feature (the applet build omits it and renders on tiny_skia — see Cargo.toml).
