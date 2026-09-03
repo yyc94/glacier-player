@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-mare"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -2406,7 +2406,7 @@ dependencies = [
 
 [[package]]
 name = "glacier-video-window"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "gstreamer",
 ]
