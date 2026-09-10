@@ -29,7 +29,7 @@ impl AppModel {
     /// Otherwise shows just the app icon.
     /// Mouse wheel adjusts volume and shows a green volume bar on the right.
     pub fn view_panel(&self) -> Element<'_, Message> {
-        if let Some(np) = &self.now_playing {
+        let content: Element<'_, Message> = if let Some(np) = &self.now_playing {
             // Build the album art thumbnail (small, fits panel)
             let base_art: Element<'_, Message> = if let Some(url) = &np.cover_url {
                 if let Some(handle) = self.loaded_images.get(url) {
@@ -122,7 +122,7 @@ impl AppModel {
                 .on_right_release(Message::NextTrack)
                 .on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
 
-            autosize::autosize(interactive, AUTOSIZE_MAIN_ID.clone()).into()
+            interactive.into()
         } else {
             // Nothing playing — build a custom button that mirrors what
             // `applet.icon_button` does internally, but uses the *non-symbolic*
@@ -146,7 +146,11 @@ impl AppModel {
             } else {
                 interactive.into()
             }
-        }
+        };
+
+        // Keep the autosize root present across both branches so libcosmic can
+        // report the smaller surface bounds again when playback stops.
+        autosize::autosize(content, AUTOSIZE_MAIN_ID.clone()).into()
     }
 
     /// Build the volume bar indicator (green bar showing current volume level)
@@ -172,5 +176,27 @@ impl AppModel {
 
         // Stack: empty on top, filled on bottom
         widget::Column::new().push(empty).push(filled).into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cosmic::Application;
+
+    use super::*;
+    use crate::music::player::NowPlaying;
+
+    #[test]
+    fn panel_keeps_the_same_autosize_root_after_playback_stops() {
+        let (mut app, _task) = <AppModel as Application>::init(cosmic::Core::default(), ());
+
+        app.now_playing = Some(NowPlaying { title: "Track".into(), artist: "Artist".into(), ..NowPlaying::default() });
+        let playing_root = app.view_panel().as_widget().id();
+
+        app.now_playing = None;
+        let idle_root = app.view_panel().as_widget().id();
+
+        assert!(playing_root.is_some(), "playing panel root must report its size");
+        assert_eq!(idle_root, playing_root, "idle panel root must keep reporting size changes");
     }
 }
